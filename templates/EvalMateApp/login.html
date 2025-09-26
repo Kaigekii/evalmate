@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalMate - Login</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="container">
+        <div class="left-section">
+            <div class="logo-container">
+                <div class="logo-square"></div>
+                <div class="user-indicator" id="userIndicator">J</div>
+                <h1>EvalMate</h1>
+            </div>
+            <div class="content">
+                <h2>Transform Your Peer Evaluations</h2>
+                <p>Experience the future of collaborative assessment with our intuitive, secure, and comprehensive peer evaluation platform.</p>
+            </div>
+        </div>
+        
+        <div class="right-section">
+            <div class="form-container">
+                <h3>Welcome Back</h3>
+                <p class="subtitle">Sign in to continue your evaluation journey</p>
+                
+                <form id="loginForm">
+                    <div class="input-group">
+                        <input type="email" id="email" placeholder="Enter your email address" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <select id="userType" required>
+                            <option value="">Select User Type</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="student">Student</option>
+                        </select>
+                    </div>
+                    
+                    <div class="forgot-password">
+                        <a href="#" id="forgotPassword">Forgot your password?</a>
+                    </div>
+                    
+                    <button type="submit" class="login-btn">Sign In to EvalMate</button>
+                    
+                    <div class="register-link">
+                        <span>Don't have an account? </span>
+                        <a href="#" id="signUpLink">Sign up here</a>
+                    </div>
+                </form>
+                
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

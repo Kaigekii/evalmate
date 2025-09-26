@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalMate - Register</title>
+    <link rel="stylesheet" href="register.css">
+</head>
+<body>
+    <div class="container">
+        <div class="left-section">
+            <div class="logo-container">
+                <h1>EvalMate</h1>
+                <p>Streamlined peer evaluation system for academic institutions</p>
+            </div>
+        </div>
+        
+        <div class="right-section">
+            <div class="form-container">
+                <h3>Create Account</h3>
+                <p class="subtitle">Join EvalMate to get started with peer evaluations</p>
+                
+                <form id="registerForm">
+                    <div class="account-type">
+                        <label>Account Type</label>
+                        <div class="type-buttons">
+                            <button type="button" class="type-btn active" data-type="student">Student</button>
+                            <button type="button" class="type-btn" data-type="faculty">Faculty</button>
+                        </div>
+                        <input type="hidden" id="accountType" value="student">
+                    </div>
+                    
+                    <div class="name-group">
+                        <div class="input-group">
+                            <label for="firstName">First Name</label>
+                            <input type="text" id="firstName" placeholder="Enter your first name" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="lastName">Last Name</label>
+                            <input type="text" id="lastName" placeholder="Enter your last name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="registerEmail">Email Address</label>
+                        <input type="email" id="registerEmail" placeholder="Enter your email address" required>
+                    </div>
+                    
+                    <div class="password-group">
+                        <div class="input-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" id="registerPassword" placeholder="Create a password" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="confirmPassword">Confirm Password</label>
+                            <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+                    
+                    <div class="details-group">
+                        <div class="input-group">
+                            <label for="studentId">Student ID</label>
+                            <input type="text" id="studentId" placeholder="Enter your student ID" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="phoneNumber">Phone Number</label>
+                            <input type="tel" id="phoneNumber" placeholder="Enter your phone number">
+                        </div>
+                    </div>
+                    
+                    <div class="institution-group">
+                        <div class="input-group">
+                            <label for="institution">Institution</label>
+                            <input type="text" id="institution" placeholder="Enter your institution" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="department">Department</label>
+                            <input type="text" id="department" placeholder="Enter your department" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="register-btn">Create Account</button>
+                    
+                    <div class="login-link">
+                        <span>Already have an account? </span>
+                        <a href="#" id="logInLink">Log in here</a>
+                    </div>
+                </form>
+                
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

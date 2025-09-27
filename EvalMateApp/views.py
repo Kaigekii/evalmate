@@ -1,3 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
-# Create your views here.
+def home_view(request):
+    return redirect('login')
+
+def login_view(request):
+    return render(request, 'EvalMateApp/login.html')
+
+def register_view(request):
+    return render(request, 'EvalMateApp/register.html')

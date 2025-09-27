@@ -1,20 +1,7 @@
 // Store user data in memory (since localStorage is not available)
 let userData = {};
 
-// Page switching functionality
-function switchToRegister() {
-    // In a real application, this would navigate to register.html
-    // For demo purposes, we'll show an alert
-    alert('Switching to register page...\nIn a real implementation, this would redirect to register.html');
-    // window.location.href = 'register.html';
-}
-
-function switchToLogin() {
-    // In a real application, this would navigate to login.html
-    // For demo purposes, we'll show an alert
-    alert('Switching to login page...\nIn a real implementation, this would redirect to login.html');
-    // window.location.href = 'login.html';
-}
+// Page switching functionality removed - navigation handled by HTML links
 
 // Utility functions
 function showMessage(elementId, message, isError = false) {
@@ -49,12 +36,7 @@ function initLoginPage() {
     const userTypeSelect = document.getElementById('userType');
     const userIndicator = document.getElementById('userIndicator');
 
-    if (signUpLink) {
-        signUpLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchToRegister();
-        });
-    }
+    // Removed event listener to allow natural link navigation
 
     if (forgotPasswordLink) {
         forgotPasswordLink.addEventListener('click', (e) => {
@@ -121,7 +103,8 @@ function handleLogin() {
                 
                 // Simulate redirect after successful login
                 setTimeout(() => {
-                    alert(`Login successful!\nEmail: ${email}\nUser Type: ${userType}\n\nIn a real app, you would be redirected to the dashboard.`);
+                    // Redirect simulation - in real app, redirect to dashboard
+                    console.log(`Login successful for ${email} (${userType})`);
                 }, 1500);
             } else {
                 showMessage('errorMessage', 'Invalid password. Please try again.', true);
@@ -143,12 +126,7 @@ function initRegisterPage() {
     const typeButtons = document.querySelectorAll('.type-btn');
     const accountTypeInput = document.getElementById('accountType');
 
-    if (logInLink) {
-        logInLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchToLogin();
-        });
-    }
+    // Removed event listener to allow natural link navigation
 
     // Account type selection
     if (typeButtons && accountTypeInput) {
@@ -312,11 +290,10 @@ function handleRegister() {
                 input.classList.remove('error', 'success');
             });
 
-            // Simulate redirect to login after successful registration
-            setTimeout(() => {
-                alert('Registration successful!\nYou will now be redirected to the login page.');
-                switchToLogin();
-            }, 2000);
+            // Registration successful - user can click "Log in here" link
+             setTimeout(() => {
+                 console.log('Registration successful');
+             }, 2000);
         }
 
         // Remove loading state

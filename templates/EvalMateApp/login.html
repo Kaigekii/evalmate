@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvalMate - Login</title>
-    <link rel="stylesheet" href="login.css">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/login.css' %}">
 </head>
 <body>
     <div class="container">
@@ -50,7 +51,7 @@
                     
                     <div class="register-link">
                         <span>Don't have an account? </span>
-                        <a href="#" id="signUpLink">Sign up here</a>
+                        <a href="{% url 'register' %}" id="signUpLink">Sign up here</a>
                     </div>
                 </form>
                 
@@ -59,7 +60,7 @@
             </div>
         </div>
     </div>
-    
-    <script src="script.js"></script>
+
+    <script src="{% static 'EvalMateApp/js/script.js' %}?v=3"></script>
 </body>
 </html>

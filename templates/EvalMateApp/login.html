@@ -27,17 +27,18 @@
                 <h3>Welcome Back</h3>
                 <p class="subtitle">Sign in to continue your evaluation journey</p>
                 
-                <form id="loginForm">
+                <form method="post" id="loginForm">
+                    {% csrf_token %}
                     <div class="input-group">
-                        <i class="fa-solid fa-envelope"></i>
-                        <input type="email" id="email" placeholder="Enter your email address" required>
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" name="username" placeholder="Enter your username" required>
                     </div>
-                    
+
                     <div class="input-group">
                         <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="password" placeholder="Enter your password" required>
+                        <input type="password" name="password" placeholder="Enter your password" required>
                     </div>
-                    
+
                     <div class="input-group">
                         <div class="custom-select">
                             <div class="select-selected">
@@ -54,19 +55,32 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="forgot-password">
                         <a href="#" id="forgotPassword">Forgot your password?</a>
                     </div>
-                    
+
                     <button type="submit" class="login-btn">Sign In to EvalMate</button>
-                    
+
                     <div class="register-link">
                         <span>Don't have an account? </span>
                         <a href="{% url 'register' %}" id="signUpLink">Sign up here</a>
                     </div>
                 </form>
                 
+                <div id="django-messages" style="display:none;">
+                    {% if messages %}
+                        {% for message in messages %}
+                            {{ message }}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <script>
+                    var msg = document.getElementById('django-messages').textContent.trim();
+                    if (msg) {
+                        alert(msg);
+                    }
+                </script>
                 <div id="errorMessage" class="error-message"></div>
                 <div id="successMessage" class="success-message"></div>
             </div>

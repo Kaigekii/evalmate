@@ -36,27 +36,15 @@ function initLoginPage() {
     const userTypeSelect = document.getElementById('userType');
     const userIndicator = document.getElementById('userIndicator');
 
+    // ADD THIS LINE
+    initCustomSelect();
+
     // Removed event listener to allow natural link navigation
 
     if (forgotPasswordLink) {
         forgotPasswordLink.addEventListener('click', (e) => {
             e.preventDefault();
             showMessage('successMessage', 'Password reset link sent to your email!');
-        });
-    }
-
-    if (userTypeSelect && userIndicator) {
-        userTypeSelect.addEventListener('change', (e) => {
-            const selectedType = e.target.value;
-            userIndicator.className = `user-indicator ${selectedType}`;
-            
-            if (selectedType === 'faculty') {
-                userIndicator.textContent = 'F';
-            } else if (selectedType === 'student') {
-                userIndicator.textContent = 'S';
-            } else {
-                userIndicator.textContent = 'U';
-            }
         });
     }
 
@@ -71,7 +59,7 @@ function initLoginPage() {
 function handleLogin() {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    const userType = document.getElementById('userType').value;
+    const userType = document.getElementById('userType') ? document.getElementById('userType').value : '';
     const loginBtn = document.querySelector('.login-btn');
 
     // Clear previous messages
@@ -367,6 +355,70 @@ function initializePage() {
     } else if (registerForm) {
         initRegisterPage();
     }
+}
+
+// Custom Select Functionality
+// Custom Select Functionality
+function initCustomSelect() {
+    const selectSelected = document.querySelector('.select-selected');
+    const selectItems = document.querySelector('.select-items');
+    const selectOptions = document.querySelectorAll('.select-items div');
+    const userIndicator = document.getElementById('userIndicator');
+    
+    if (!selectSelected || !selectItems) return;
+    
+    // Toggle dropdown when clicking on the selected item
+    selectSelected.addEventListener('click', function(e) {
+        e.stopPropagation();
+        selectItems.classList.toggle('select-hide');
+    });
+    
+    // Handle option selection
+    selectOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const value = this.getAttribute('data-value');
+            const text = this.innerHTML;
+            
+            // Update the displayed text
+            selectSelected.innerHTML = text;
+            
+            // Hide the dropdown
+            selectItems.classList.add('select-hide');
+            
+            // Create or update a hidden input for form submission
+            let hiddenInput = document.getElementById('userType');
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = 'userType';
+                hiddenInput.name = 'userType';
+                document.querySelector('.custom-select').appendChild(hiddenInput);
+            }
+            hiddenInput.value = value;
+            
+            // Update user indicator
+            if (userIndicator) {
+                if (value === 'faculty') {
+                    userIndicator.className = 'user-indicator faculty';
+                    userIndicator.textContent = 'F';
+                } else if (value === 'student') {
+                    userIndicator.className = 'user-indicator student';
+                    userIndicator.textContent = 'S';
+                } else {
+                    userIndicator.className = 'user-indicator';
+                    userIndicator.textContent = '?';
+                }
+            }
+        });
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select')) {
+            selectItems.classList.add('select-hide');
+        }
+    });
 }
 
 // Page load event

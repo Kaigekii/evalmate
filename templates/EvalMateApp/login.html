@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvalMate - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     {% load static %}
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/login.css' %}">
 </head>
@@ -12,7 +13,7 @@
         <div class="left-section">
             <div class="logo-container">
                 <div class="logo-square"></div>
-                <div class="user-indicator" id="userIndicator">J</div>
+                <div class="user-indicator" id="userIndicator">?</div>
                 <h1>EvalMate</h1>
             </div>
             <div class="content">
@@ -28,19 +29,30 @@
                 
                 <form id="loginForm">
                     <div class="input-group">
+                        <i class="fa-solid fa-envelope"></i>
                         <input type="email" id="email" placeholder="Enter your email address" required>
                     </div>
                     
                     <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
                         <input type="password" id="password" placeholder="Enter your password" required>
                     </div>
                     
                     <div class="input-group">
-                        <select id="userType" required>
-                            <option value="">Select User Type</option>
-                            <option value="faculty">Faculty</option>
-                            <option value="student">Student</option>
-                        </select>
+                        <div class="custom-select">
+                            <div class="select-selected">
+                                <i class="fa-solid fa-user"></i>
+                                <span>Select User Type</span>
+                            </div>
+                            <div class="select-items select-hide">
+                                <div data-value="faculty">
+                                    <i class="fa-solid fa-chalkboard-teacher"></i> Faculty
+                                </div>
+                                <div data-value="student">
+                                    <i class="fa-solid fa-graduation-cap"></i> Student
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="forgot-password">

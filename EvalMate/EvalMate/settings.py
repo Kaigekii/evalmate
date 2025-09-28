@@ -75,8 +75,12 @@ WSGI_APPLICATION = 'EvalMate.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres.quifctsbspsveatadpln',
+        'PASSWORD': 'm0CBnUSNt9yF0oZj',
+        'HOST': 'aws-1-us-east-2.pooler.supabase.com',
+        'PORT': '5432',
     }
 }
 
@@ -91,9 +95,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
+    # {
+    #     'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    # }
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },

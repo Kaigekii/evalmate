@@ -48,12 +48,6 @@ function initLoginPage() {
         });
     }
 
-    if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            handleLogin();
-        });
-    }
 }
 
 function handleLogin() {
@@ -147,12 +141,6 @@ function initRegisterPage() {
         });
     }
 
-    if (registerForm) {
-        registerForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            handleRegister();
-        });
-    }
 
     // Real-time password validation
     const passwordInput = document.getElementById('registerPassword');

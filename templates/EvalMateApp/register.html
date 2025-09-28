@@ -25,79 +25,92 @@
                 <h3>Create Account</h3>
                 <p class="subtitle">Join EvalMate to get started with peer evaluations</p>
                 
-                <form id="registerForm">
+                <form method="post" id="registerForm">
+                    {% csrf_token %}
                     <div class="account-type">
                         <label>Account Type</label>
                         <div class="type-buttons">
                             <button type="button" class="type-btn active" data-type="student">Student</button>
                             <button type="button" class="type-btn" data-type="faculty">Faculty</button>
                         </div>
-                        <input type="hidden" id="accountType" value="student">
+                        <input type="hidden" id="accountType" name="account_type" value="student">
                     </div>
-                    
+
                     <div class="name-group">
                         <div class="input-group">
                             <label for="firstName">First Name</label>
-                            <input type="text" id="firstName" placeholder="Enter your first name" required>
+                            <input type="text" name="first_name" id="firstName" placeholder="Enter your first name" required>
                         </div>
                         <div class="input-group">
                             <label for="lastName">Last Name</label>
-                            <input type="text" id="lastName" placeholder="Enter your last name" required>
+                            <input type="text" name="last_name" id="lastName" placeholder="Enter your last name" required>
                         </div>
                     </div>
-                    
+
                     <div class="input-group">
-                        <label for="registerEmail">Email Address</label>
-                        <input type="email" id="registerEmail" placeholder="Enter your email address" required>
+                        <label for="email">Email Address</label>
+                        <input type="email" name="email" id="email" placeholder="Enter your email address" required>
                     </div>
-                    
+
+                    <div class="input-group">
+                        <label for="username">Username</label>
+                        <input type="text" name="username" id="username" placeholder="Choose a username" required>
+                    </div>
+
                     <div class="password-group">
                         <div class="input-group">
-                            <label for="registerPassword">Password</label>
-                            <input type="password" id="registerPassword" placeholder="Create a password" required>
+                            <label for="password1">Password</label>
+                            <input type="password" name="password1" id="password1" placeholder="Create a password" required>
                         </div>
                         <div class="input-group">
-                            <label for="confirmPassword">Confirm Password</label>
-                            <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
+                            <label for="password2">Confirm Password</label>
+                            <input type="password" name="password2" id="password2" placeholder="Confirm your password" required>
                         </div>
                     </div>
-                    
+
                     <div class="details-group">
                         <div class="input-group">
                             <label for="studentId">Student ID</label>
-                            <input type="text" id="studentId" placeholder="Enter your student ID" required>
+                            <input type="text" name="student_id" id="studentId" placeholder="Enter your student ID" required>
                         </div>
                         <div class="input-group">
                             <label for="phoneNumber">Phone Number</label>
-                            <input type="tel" id="phoneNumber" placeholder="Enter your phone number">
+                            <input type="tel" name="phone_number" id="phoneNumber" placeholder="Enter your phone number">
                         </div>
                     </div>
-                    
+
                     <div class="institution-group">
                         <div class="input-group">
                             <label for="institution">Institution</label>
-                            <input type="text" id="institution" placeholder="Enter your institution" required>
+                            <input type="text" name="institution" id="institution" placeholder="Enter your institution" required>
                         </div>
                         <div class="input-group">
                             <label for="department">Department</label>
-                            <input type="text" id="department" placeholder="Enter your department" required>
+                            <input type="text" name="department" id="department" placeholder="Enter your department" required>
                         </div>
                     </div>
-                    
+
                     <button type="submit" class="register-btn">Create Account</button>
-                    
+
                     <div class="login-link">
                         <span>Already have an account? </span>
                         <a href="{% url 'login' %}" id="logInLink">Log in here</a>
                     </div>
                 </form>
                 
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="{% if message.tags == 'error' %}error-message{% else %}success-message{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
                 <div id="errorMessage" class="error-message"></div>
                 <div id="successMessage" class="success-message"></div>
             </div>
         </div>
     </div>
 
-    <script src="{% static 'EvalMateApp/js/script.js' %}?v=3"></script>
+    <script src="{% static 'EvalMateApp/js/script.js' %}?v=4"></script>
 </body>
 </html>

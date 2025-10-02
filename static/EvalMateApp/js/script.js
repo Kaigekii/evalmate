@@ -295,7 +295,7 @@ function initRegisterPage() {
             if (!value) {
                 showFieldError('password1', 'Password is required');
             } else if (!validatePassword(value)) {
-                showFieldError('password1', 'Password must be 8+ characters with uppercase, lowercase, and number');
+                showFieldError('password1', 'Must be 8+ characters with uppercase and numbers');
             } else {
                 showFieldSuccess('password1');
             }
@@ -669,13 +669,27 @@ function resetForm(formId) {
 function togglePasswordVisibility(inputId, toggleButtonId) {
     const passwordInput = document.getElementById(inputId);
     const toggleButton = document.getElementById(toggleButtonId);
-    
+
     if (passwordInput && toggleButton) {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        toggleButton.textContent = type === 'password' ? '👁️' : '🙈';
+        const icon = toggleButton.querySelector("i");
+
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            if (icon) {
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            }
+        } else {
+            passwordInput.type = "password";
+            if (icon) {
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
     }
 }
+
+
 
 function showStoredUsers() {
     console.log('Stored Users:', userData);

@@ -7,42 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     {% load static %}
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/login.css' %}">
-    <style>
-        /* Inline validation styles */
-        .field-error {
-            color: #e74c3c;
-            font-size: 12px;
-            margin-top: 4px;
-            display: block;
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-5px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .input-group input.error,
-        .custom-select.error {
-            border-color: #e74c3c !important;
-            background-color: #fff5f5;
-        }
-
-        .input-group input.success {
-            border-color: #2ecc71 !important;
-            background-color: #f0fdf4;
-        }
-        
-        .custom-select {
-            position: relative;
-        }
-    </style>
+    
 </head>
 <body>
     <div class="container">
@@ -70,12 +35,20 @@
                         <input type="text" id="username" name="username" placeholder="Enter your username" required>
                         <span class="field-error" id="usernameError"></span>
                     </div>
+                    
 
                     <div class="input-group">
-                        <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                        <span class="field-error" id="passwordError"></span>
+                        <i class="fa-solid fa-lock input-icon"></i>
+
+                        <input type="password" id="password" name="password" placeholder="Enter password">
+
+                        <button type="button" id="togglePassword" class="toggle-password"
+                            onclick="togglePasswordVisibility('password','togglePassword')">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
                     </div>
+
+
 
                     <div class="input-group with-select">
                         <div class="custom-select">

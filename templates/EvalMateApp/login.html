@@ -68,14 +68,16 @@
                     <div class="input-group">
                         <i class="fa-solid fa-user"></i>
                         <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                        <span class="field-error" id="usernameError"></span>
                     </div>
 
                     <div class="input-group">
                         <i class="fa-solid fa-lock"></i>
                         <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                        <span class="field-error" id="passwordError"></span>
                     </div>
 
-                    <div class="input-group">
+                    <div class="input-group with-select">
                         <div class="custom-select">
                             <div class="select-selected">
                                 <i class="fa-solid fa-user"></i>
@@ -90,6 +92,7 @@
                                 </div>
                             </div>
                         </div>
+                        <span class="field-error" id="userTypeError"></span>
                     </div>
 
                     <div class="forgot-password">

@@ -126,6 +126,11 @@ h1 {
 .input-group {
     margin-bottom: 1.5rem;
     position: relative;
+    min-height: 70px;
+}
+
+.input-group.with-select {
+    min-height: 90px; /* More space for custom select */
 }
 
 .input-group input,
@@ -156,7 +161,7 @@ h1 {
 .input-group > i {
     position: absolute;
     left: 1rem;
-    top: 50%;
+    top: 40%;
     transform: translateY(-50%);
     color: #37353E;
     font-size: 1rem;
@@ -254,6 +259,7 @@ h1 {
 .forgot-password {
     text-align: right;
     margin-bottom: 2rem;
+    margin-top: 1rem; /* Add top margin to account for possible error message */
 }
 
 .forgot-password a {
@@ -314,12 +320,24 @@ h1 {
     text-decoration: underline;
 }
 
+.field-error {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+    animation: fadeIn 0.3s;
+    position: absolute; /* Position error absolutely */
+    left: 70;
+    top: 80%; /* Place below the input */
+    width: 100%;
+}
+
 .error-message {
     background: #fed7d7;
     color: #c53030;
     padding: 0.75rem;
     border-radius: 6px;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     font-size: 0.875rem;
     display: none;
 }

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvalMate - Register</title>
     {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/register.css' %}">
 </head>
 
@@ -61,16 +62,35 @@
                         <input type="text" name="username" id="username" placeholder="Choose a username" required>
                         <span class="field-error" id="usernameError"></span>
                     </div>
-
+                    
                     <div class="password-group">
+                        <!-- Password -->
                         <div class="input-group">
                             <label for="password1">Password</label>
-                            <input type="password" name="password1" id="password1" placeholder="Create a password" required>
+                            <div class="input-wrapper">
+                                <input type="password" name="password1" id="password1" placeholder="Create a password" required>
+                                <!-- 👁️ Eye toggle -->
+                                <button type="button" class="toggle-password" id="togglePassword1"
+                                    onclick="togglePasswordVisibility('password1','togglePassword1')">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                            </div>
+                            <!-- error always stays below input -->
                             <span class="field-error" id="password1Error"></span>
                         </div>
+
+                        <!-- Confirm Password -->
                         <div class="input-group">
                             <label for="password2">Confirm Password</label>
-                            <input type="password" name="password2" id="password2" placeholder="Confirm your password" required>
+                            <div class="input-wrapper">
+                                <input type="password" name="password2" id="password2" placeholder="Confirm your password" required>
+                                <!-- 👁️ Eye toggle -->
+                                <button type="button" class="toggle-password" id="togglePassword2"
+                                    onclick="togglePasswordVisibility('password2','togglePassword2')">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                            </div>
+                            <!-- error always stays below input -->
                             <span class="field-error" id="password2Error"></span>
                         </div>
                     </div>

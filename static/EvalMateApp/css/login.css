@@ -405,3 +405,92 @@ h1 {
         padding: 2rem;
     }
 }
+
+/* Validation styles */
+.field-error {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+    animation: fadeIn 0.3s;
+    position: absolute;
+    left: 70;
+    top: 80%;
+    width: 100%;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.input-group input.error,
+.custom-select.error {
+    border-color: #e74c3c !important;
+    background-color: #fff5f5;
+}
+
+.input-group input.success {
+    border-color: #2ecc71 !important;
+    background-color: #f0fdf4;
+}
+
+.custom-select {
+    position: relative;
+}
+
+
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Lock icon on the left */
+.input-group > i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #37353E;
+    font-size: 1rem;
+    z-index: 1;
+}
+
+/* Input field spacing adjusted for both icons */
+.input-group input {
+    font-family: "Poppins", sans-serif;
+    font-weight: 300;
+    font-style: normal;
+    width: 100%;
+    padding: 0.875rem 2.5rem; /* space on both sides */
+    padding-left: 3rem;       /* extra for lock icon */
+    padding-right: 3rem;      /* extra for eye toggle */
+    border: 2px solid white;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+/* Eye toggle on the right */
+.toggle-password {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #37353E;
+    z-index: 2;
+}
+
+

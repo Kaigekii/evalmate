@@ -351,9 +351,9 @@ function initRegisterPage() {
         phoneInput.addEventListener('blur', function() {
             const value = this.value.trim();
             if (value) {
-                const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+                const phoneRegex = /^09\d{9}$/;
                 if (!phoneRegex.test(value.replace(/[-\s\(\)]/g, ''))) {
-                    showFieldError('phoneNumber', 'Please enter a valid phone number');
+                    showFieldError('phoneNumber', 'Please enter a valid Philippine mobile number');
                 } else {
                     showFieldSuccess('phoneNumber');
                 }
@@ -567,9 +567,9 @@ function validateRegistrationForm(formData) {
     }
 
     if (formData.phoneNumber) {
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        const phoneRegex = /^09\d{9}$/;
         if (!phoneRegex.test(formData.phoneNumber.replace(/[-\s\(\)]/g, ''))) {
-            return 'Please enter a valid phone number.';
+            return 'Please enter a valid Philippine mobile number.';
         }
     }
 

@@ -40,7 +40,7 @@ function showFieldSuccess(inputId) {
     input.classList.add('success');
 }
 
-// === ORIGINAL UTILITY FUNCTIONS ===
+// === UPDATED VALIDATION FUNCTIONS ===
 function showMessage(elementId, message, isError = false) {
     const element = document.getElementById(elementId);
     if (element) {
@@ -58,9 +58,26 @@ function validateEmail(email) {
     return emailRegex.test(email);
 }
 
+// UPDATED: More specific password validation
 function validatePassword(password) {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
+    const errors = [];
+    
+    // Check minimum length (at least 8 characters)
+    if (password.length < 8) {
+        errors.push('at least 8 characters');
+    }
+    
+    // Check for at least 1 capital letter
+    if (!/[A-Z]/.test(password)) {
+        errors.push('at least 1 capital letter');
+    }
+    
+    // Check for at least 1 symbol/non-alphabetical character
+    if (!/[^a-zA-Z0-9]/.test(password)) {
+        errors.push('at least 1 symbol character');
+    }
+    
+    return errors;
 }
 
 function validateName(name) {
@@ -245,7 +262,7 @@ function initRegisterPage() {
         });
     }
     
-    // Email
+    // Email - UPDATED WITH DUPLICATE CHECK
     const emailInput = document.getElementById('email');
     if (emailInput) {
         emailInput.addEventListener('blur', function() {
@@ -255,7 +272,14 @@ function initRegisterPage() {
             } else if (!validateEmail(value)) {
                 showFieldError('email', 'Please enter a valid email address');
             } else {
-                showFieldSuccess('email');
+                // Check if email already exists
+                const accountType = document.getElementById('accountType').value;
+                const userKey = `${value}_${accountType}`;
+                if (userData[userKey]) {
+                    showFieldError('email', 'Email already exists');
+                } else {
+                    showFieldSuccess('email');
+                }
             }
         });
         
@@ -266,7 +290,7 @@ function initRegisterPage() {
         });
     }
     
-    // Username
+    // Username - UPDATED WITH DUPLICATE CHECK
     const usernameInput = document.getElementById('username');
     if (usernameInput) {
         usernameInput.addEventListener('blur', function() {
@@ -276,7 +300,13 @@ function initRegisterPage() {
             } else if (value.length < 3) {
                 showFieldError('username', 'Username must be at least 3 characters');
             } else {
-                showFieldSuccess('username');
+                // Check if username already exists
+                const usernameExists = Object.values(userData).some(user => user.username === value);
+                if (usernameExists) {
+                    showFieldError('username', 'Username already exists');
+                } else {
+                    showFieldSuccess('username');
+                }
             }
         });
         
@@ -287,27 +317,54 @@ function initRegisterPage() {
         });
     }
     
-    // Password (password1)
+    // Password (password1) - UPDATED WITH REAL-TIME REQUIREMENTS CHECKING
     const passwordInput = document.getElementById('password1');
-    if (passwordInput) {
+    const requirementsBox = document.getElementById('passwordRequirements');
+    const reqLength = document.getElementById('req-length');
+    const reqCapital = document.getElementById('req-capital');
+    const reqSymbol = document.getElementById('req-symbol');
+    
+    if (passwordInput && requirementsBox) {
+        // Show requirements box ONLY when focused (pressed)
+        passwordInput.addEventListener('focus', function() {
+            requirementsBox.classList.add('show');
+        });
+        
+        // Hide requirements box when unfocused (unpressed)
         passwordInput.addEventListener('blur', function() {
+            requirementsBox.classList.remove('show');
+            
             const value = this.value;
             if (!value) {
                 showFieldError('password1', 'Password is required');
-            } else if (!validatePassword(value)) {
-                showFieldError('password1', 'Must be 8+ characters with uppercase and numbers');
             } else {
-                showFieldSuccess('password1');
+                const errors = validatePassword(value);
+                if (errors.length > 0) {
+                    showFieldError('password1', `Password must contain: ${errors.join(', ')}`);
+                } else {
+                    showFieldSuccess('password1');
+                }
             }
         });
         
+        // Real-time validation as user types (but only update indicators, don't show/hide box)
         passwordInput.addEventListener('input', function() {
-            if (this.value) {
+            const password = this.value;
+            
+            // Clear any error messages while typing
+            if (password.length > 0) {
                 clearFieldError('password1');
-                const confirmInput = document.getElementById('password2');
-                if (confirmInput && confirmInput.value) {
-                    validatePasswordMatch();
-                }
+            }
+            
+            // Check each requirement and update UI
+            validateRequirement(reqLength, password.length >= 8);
+            validateRequirement(reqCapital, /[A-Z]/.test(password));
+            validateRequirement(reqSymbol, /[^a-zA-Z0-9]/.test(password));
+            
+            // Also validate confirm password if it has value
+            const confirmInput = document.getElementById('password2');
+            if (confirmInput && confirmInput.value) {
+                validatePasswordMatch();
             }
         });
     }
@@ -417,12 +474,34 @@ function validatePasswordStrength() {
         return;
     }
     
-    if (validatePassword(password)) {
+    const errors = validatePassword(password);
+    if (errors.length === 0) {
         passwordInput.classList.remove('error');
         passwordInput.classList.add('success');
     } else {
         passwordInput.classList.remove('success');
         passwordInput.classList.add('error');
+    }
+}
+
+// NEW: Helper function to update individual requirement UI
+function validateRequirement(element, isValid) {
+    if (!element) return;
+    
+    const icon = element.querySelector('i');
+    
+    if (isValid) {
+        element.classList.remove('invalid');
+        element.classList.add('valid');
+        if (icon) {
+            icon.className = 'fa-solid fa-check';
+        }
+    } else {
+        element.classList.remove('valid');
+        element.classList.add('invalid');
+        if (icon) {
+            icon.className = 'fa-solid fa-xmark';
+        }
     }
 }
 
@@ -449,6 +528,7 @@ function validatePasswordMatch() {
     }
 }
 
+// UPDATED: Enhanced registration validation
 function handleRegister() {
     const formData = {
         accountType: document.getElementById('accountType').value,
@@ -480,53 +560,69 @@ function handleRegister() {
 
     setTimeout(() => {
         const userKey = `${formData.email}_${formData.accountType}`;
+        
+        // Check if email already exists
         if (userData[userKey]) {
-            showMessage('errorMessage', 'An account with this email and user type already exists.', true);
-        } else {
-            userData[userKey] = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                username: formData.username,
-                password: formData.password,
-                accountType: formData.accountType,
-                studentId: formData.studentId,
-                phoneNumber: formData.phoneNumber,
-                institution: formData.institution,
-                department: formData.department,
-                createdAt: new Date().toISOString()
-            };
-
-            showMessage('successMessage', 'Account created successfully! You can now log in.');
-            
-            document.getElementById('registerForm').reset();
-            
-            document.querySelectorAll('.type-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-type') === 'student') {
-                    btn.classList.add('active');
-                }
-            });
-            document.getElementById('accountType').value = 'student';
-            
-            document.querySelectorAll('input').forEach(input => {
-                input.classList.remove('error', 'success');
-            });
-            
-            document.querySelectorAll('.field-error').forEach(error => {
-                error.remove();
-            });
-
-            setTimeout(() => {
-                console.log('Registration successful');
-            }, 2000);
+            showMessage('errorMessage', 'Email already exists', true);
+            registerBtn.classList.remove('loading');
+            registerBtn.disabled = false;
+            return;
         }
+        
+        // Check if username already exists
+        const usernameExists = Object.values(userData).some(user => user.username === formData.username);
+        if (usernameExists) {
+            showMessage('errorMessage', 'Username already exists', true);
+            registerBtn.classList.remove('loading');
+            registerBtn.disabled = false;
+            return;
+        }
+        
+        // If validation passes, create user
+        userData[userKey] = {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            username: formData.username,
+            password: formData.password,
+            accountType: formData.accountType,
+            studentId: formData.studentId,
+            phoneNumber: formData.phoneNumber,
+            institution: formData.institution,
+            department: formData.department,
+            createdAt: new Date().toISOString()
+        };
+
+        showMessage('successMessage', 'Account created successfully! You can now log in.');
+        
+        document.getElementById('registerForm').reset();
+        
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-type') === 'student') {
+                btn.classList.add('active');
+            }
+        });
+        document.getElementById('accountType').value = 'student';
+        
+        document.querySelectorAll('input').forEach(input => {
+            input.classList.remove('error', 'success');
+        });
+        
+        document.querySelectorAll('.field-error').forEach(error => {
+            error.remove();
+        });
+
+        setTimeout(() => {
+            console.log('Registration successful');
+        }, 2000);
 
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
     }, 2000);
 }
 
+// UPDATED: Enhanced validation with specific password requirements
 function validateRegistrationForm(formData) {
     const requiredFields = [
         { field: 'firstName', name: 'First Name' },
@@ -550,8 +646,10 @@ function validateRegistrationForm(formData) {
         return 'Please enter a valid email address.';
     }
 
-    if (!validatePassword(formData.password)) {
-        return 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.';
+    // Check for specific password requirements
+    const passwordErrors = validatePassword(formData.password);
+    if (passwordErrors.length > 0) {
+        return `Password must contain: ${passwordErrors.join(', ')}.`;
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -688,8 +786,6 @@ function togglePasswordVisibility(inputId, toggleButtonId) {
         }
     }
 }
-
-
 
 function showStoredUsers() {
     console.log('Stored Users:', userData);

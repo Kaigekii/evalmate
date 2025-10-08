@@ -64,18 +64,34 @@
                     </div>
                     
                     <div class="password-group">
-                        <!-- Password -->
+                        <!-- Password WITH REQUIREMENTS -->
                         <div class="input-group">
                             <label for="password1">Password</label>
                             <div class="input-wrapper">
                                 <input type="password" name="password1" id="password1" placeholder="Create a password" required>
-                                <!-- 👁️ Eye toggle -->
                                 <button type="button" class="toggle-password" id="togglePassword1"
                                     onclick="togglePasswordVisibility('password1','togglePassword1')">
                                     <i class="fa fa-eye"></i>
                                 </button>
                             </div>
-                            <!-- error always stays below input -->
+                            
+                            <!-- PASSWORD REQUIREMENTS BOX -->
+                            <div class="password-requirements" id="passwordRequirements">
+                                <p>Password must contain:</p>
+                                <div class="requirement invalid" id="req-length">
+                                    <i class="fa-solid fa-xmark"></i>
+                                    <span>At least 8 characters</span>
+                                </div>
+                                <div class="requirement invalid" id="req-capital">
+                                    <i class="fa-solid fa-xmark"></i>
+                                    <span>At least 1 capital letter</span>
+                                </div>
+                                <div class="requirement invalid" id="req-symbol">
+                                    <i class="fa-solid fa-xmark"></i>
+                                    <span>At least 1 symbol character</span>
+                                </div>
+                            </div>
+                            
                             <span class="field-error" id="password1Error"></span>
                         </div>
 
@@ -84,13 +100,11 @@
                             <label for="password2">Confirm Password</label>
                             <div class="input-wrapper">
                                 <input type="password" name="password2" id="password2" placeholder="Confirm your password" required>
-                                <!-- 👁️ Eye toggle -->
                                 <button type="button" class="toggle-password" id="togglePassword2"
                                     onclick="togglePasswordVisibility('password2','togglePassword2')">
                                     <i class="fa fa-eye"></i>
                                 </button>
                             </div>
-                            <!-- error always stays below input -->
                             <span class="field-error" id="password2Error"></span>
                         </div>
                     </div>
@@ -142,6 +156,6 @@
         </div>
     </div>
 
-    <script src="{% static 'EvalMateApp/js/script.js' %}?v=5"></script>
+    <script src="{% static 'EvalMateApp/js/script.js' %}?v=7"></script>
 </body>
 </html>

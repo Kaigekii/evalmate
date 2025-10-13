@@ -86,5 +86,5 @@ These instructions will get you a copy of the project up and running on your loc
 | Name                | Role              | CIT-U Email                           |
 | ------------------- | ----------------- | ------------------------------------- |
 | Johndaniel Canonigo | Lead Developer    | johndaniel.canonigo@cit.edu           |
-| John Aaron Cañadilla| Frontend Developer| johnaaron.cañadilla@cit.edu         |
+| John Aaron Cañadilla| Frontend Developer| johnaaron.canadilla@cit.edu         |
 | Mark Anton Camoro   | Backend Developer | markanton.camoro@cit.edu              |

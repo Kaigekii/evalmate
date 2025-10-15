@@ -1,193 +1,5 @@
-// Store user data in memory (since localStorage is not available)
-let userData = {};
-
-// === INLINE VALIDATION FUNCTIONS (NEW) ===
-function showFieldError(inputId, message) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    const existingError = input.parentElement.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
-    
-    input.classList.add('error');
-    input.classList.remove('success');
-    
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'field-error';
-    errorDiv.textContent = message;
-    input.parentElement.appendChild(errorDiv);
-}
-
-function clearFieldError(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    const existingError = input.parentElement.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
-    
-    input.classList.remove('error');
-}
-
-function showFieldSuccess(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    clearFieldError(inputId);
-    input.classList.add('success');
-}
-
-// === UPDATED VALIDATION FUNCTIONS ===
-function showMessage(elementId, message, isError = false) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = message;
-        element.style.display = 'block';
-        
-        setTimeout(() => {
-            element.style.display = 'none';
-        }, 5000);
-    }
-}
-
-function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-// UPDATED: More specific password validation
-function validatePassword(password) {
-    const errors = [];
-    
-    // Check minimum length (at least 8 characters)
-    if (password.length < 8) {
-        errors.push('at least 8 characters');
-    }
-    
-    // Check for at least 1 capital letter
-    if (!/[A-Z]/.test(password)) {
-        errors.push('at least 1 capital letter');
-    }
-    
-    // Check for at least 1 symbol/non-alphabetical character
-    if (!/[^a-zA-Z0-9]/.test(password)) {
-        errors.push('at least 1 symbol character');
-    }
-    
-    return errors;
-}
-
-function validateName(name) {
-    const nameRegex = /^[A-Za-z\s'-]+$/;
-    return nameRegex.test(name);
-}
-
-// === LOGIN PAGE FUNCTIONALITY ===
-function initLoginPage() {
-    initCustomSelect();
-    
-    const usernameInput = document.querySelector('input[name="username"]');
-    const passwordInput = document.querySelector('input[name="password"]');
-    const forgotPasswordLink = document.getElementById('forgotPassword');
-    
-    // Add IDs if missing
-    if (usernameInput && !usernameInput.id) {
-        usernameInput.id = 'username';
-    }
-    if (passwordInput && !passwordInput.id) {
-        passwordInput.id = 'password';
-    }
-    
-    // Username validation
-    if (usernameInput) {
-        usernameInput.addEventListener('blur', function() {
-            const value = this.value.trim();
-            if (!value) {
-                showFieldError('username', 'Username is required');
-            } else {
-                showFieldSuccess('username');
-            }
-        });
-        
-        usernameInput.addEventListener('input', function() {
-            if (this.value.trim()) {
-                clearFieldError('username');
-            }
-        });
-    }
-    
-    // Password validation
-    if (passwordInput) {
-        passwordInput.addEventListener('blur', function() {
-            if (!this.value) {
-                showFieldError('password', 'Password is required');
-            } else {
-                showFieldSuccess('password');
-            }
-        });
-        
-        passwordInput.addEventListener('input', function() {
-            if (this.value) {
-                clearFieldError('password');
-            }
-        });
-    }
-    
-    if (forgotPasswordLink) {
-        forgotPasswordLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showMessage('successMessage', 'Password reset link sent to your email!');
-        });
-    }
-}
-
-function handleLogin() {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const userType = document.getElementById('userType') ? document.getElementById('userType').value : '';
-    const loginBtn = document.querySelector('.login-btn');
-
-    document.getElementById('errorMessage').style.display = 'none';
-    document.getElementById('successMessage').style.display = 'none';
-
-    if (!email || !password || !userType) {
-        showMessage('errorMessage', 'Please fill in all fields.', true);
-        return;
-    }
-
-    if (!validateEmail(email)) {
-        showMessage('errorMessage', 'Please enter a valid email address.', true);
-        return;
-    }
-
-    loginBtn.classList.add('loading');
-    loginBtn.disabled = true;
-
-    setTimeout(() => {
-        const userKey = `${email}_${userType}`;
-        if (userData[userKey]) {
-            if (userData[userKey].password === password) {
-                showMessage('successMessage', `Welcome back! Logging in as ${userType}...`);
-                
-                setTimeout(() => {
-                    console.log(`Login successful for ${email} (${userType})`);
-                }, 1500);
-            } else {
-                showMessage('errorMessage', 'Invalid password. Please try again.', true);
-            }
-        } else {
-            showMessage('errorMessage', 'Account not found. Please check your credentials or sign up.', true);
-        }
-
-        loginBtn.classList.remove('loading');
-        loginBtn.disabled = false;
-    }, 1500);
-}
-
 // === REGISTER PAGE FUNCTIONALITY ===
+
 function initRegisterPage() {
     const typeButtons = document.querySelectorAll('.type-btn');
     const accountTypeInput = document.getElementById('accountType');
@@ -463,28 +275,7 @@ function initRegisterPage() {
     }
 }
 
-function validatePasswordStrength() {
-    const password = document.getElementById('password1') ? document.getElementById('password1').value : '';
-    const passwordInput = document.getElementById('password1');
-    
-    if (!passwordInput) return;
-    
-    if (password.length === 0) {
-        passwordInput.classList.remove('error', 'success');
-        return;
-    }
-    
-    const errors = validatePassword(password);
-    if (errors.length === 0) {
-        passwordInput.classList.remove('error');
-        passwordInput.classList.add('success');
-    } else {
-        passwordInput.classList.remove('success');
-        passwordInput.classList.add('error');
-    }
-}
-
-// NEW: Helper function to update individual requirement UI
+// Helper function to update individual requirement UI
 function validateRequirement(element, isValid) {
     if (!element) return;
     
@@ -528,7 +319,28 @@ function validatePasswordMatch() {
     }
 }
 
-// UPDATED: Enhanced registration validation
+function validatePasswordStrength() {
+    const password = document.getElementById('password1') ? document.getElementById('password1').value : '';
+    const passwordInput = document.getElementById('password1');
+    
+    if (!passwordInput) return;
+    
+    if (password.length === 0) {
+        passwordInput.classList.remove('error', 'success');
+        return;
+    }
+    
+    const errors = validatePassword(password);
+    if (errors.length === 0) {
+        passwordInput.classList.remove('error');
+        passwordInput.classList.add('success');
+    } else {
+        passwordInput.classList.remove('success');
+        passwordInput.classList.add('error');
+    }
+}
+
+// Enhanced registration validation
 function handleRegister() {
     const formData = {
         accountType: document.getElementById('accountType').value,
@@ -622,180 +434,10 @@ function handleRegister() {
     }, 2000);
 }
 
-// UPDATED: Enhanced validation with specific password requirements
-function validateRegistrationForm(formData) {
-    const requiredFields = [
-        { field: 'firstName', name: 'First Name' },
-        { field: 'lastName', name: 'Last Name' },
-        { field: 'email', name: 'Email Address' },
-        { field: 'username', name: 'Username' },
-        { field: 'password', name: 'Password' },
-        { field: 'confirmPassword', name: 'Confirm Password' },
-        { field: 'studentId', name: formData.accountType === 'faculty' ? 'Faculty ID' : 'Student ID' },
-        { field: 'institution', name: 'Institution' },
-        { field: 'department', name: 'Department' }
-    ];
-
-    for (let { field, name } of requiredFields) {
-        if (!formData[field]) {
-            return `${name} is required.`;
-        }
-    }
-
-    if (!validateEmail(formData.email)) {
-        return 'Please enter a valid email address.';
-    }
-
-    // Check for specific password requirements
-    const passwordErrors = validatePassword(formData.password);
-    if (passwordErrors.length > 0) {
-        return `Password must contain: ${passwordErrors.join(', ')}.`;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-        return 'Passwords do not match.';
-    }
-
-    const nameRegex = /^[A-Za-z\s'-]+$/;
-    if (!nameRegex.test(formData.firstName)) {
-        return 'First name should only contain letters, spaces, hyphens, and apostrophes.';
-    }
-    if (!nameRegex.test(formData.lastName)) {
-        return 'Last name should only contain letters, spaces, hyphens, and apostrophes.';
-    }
-
-    if (formData.phoneNumber) {
-        const phoneRegex = /^09\d{9}$/;
-        if (!phoneRegex.test(formData.phoneNumber.replace(/[-\s\(\)]/g, ''))) {
-            return 'Please enter a valid Philippine mobile number.';
-        }
-    }
-
-    return null;
-}
-
-// === CUSTOM SELECT FUNCTIONALITY ===
-function initCustomSelect() {
-    const selectSelected = document.querySelector('.select-selected');
-    const selectItems = document.querySelector('.select-items');
-    const selectOptions = document.querySelectorAll('.select-items div');
-    const userIndicator = document.getElementById('userIndicator');
-    
-    if (!selectSelected || !selectItems) return;
-    
-    selectSelected.addEventListener('click', function(e) {
-        e.stopPropagation();
-        selectItems.classList.toggle('select-hide');
-    });
-    
-    selectOptions.forEach(option => {
-        option.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const value = this.getAttribute('data-value');
-            const text = this.innerHTML;
-            
-            selectSelected.innerHTML = text;
-            selectItems.classList.add('select-hide');
-            
-            let hiddenInput = document.getElementById('userType');
-            if (!hiddenInput) {
-                hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.id = 'userType';
-                hiddenInput.name = 'userType';
-                document.querySelector('.custom-select').appendChild(hiddenInput);
-            }
-            hiddenInput.value = value;
-            
-            if (userIndicator) {
-                if (value === 'faculty') {
-                    userIndicator.className = 'user-indicator faculty';
-                    userIndicator.textContent = 'F';
-                } else if (value === 'student') {
-                    userIndicator.className = 'user-indicator student';
-                    userIndicator.textContent = 'S';
-                } else {
-                    userIndicator.className = 'user-indicator';
-                    userIndicator.textContent = '?';
-                }
-            }
-        });
-    });
-    
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.custom-select')) {
-            selectItems.classList.add('select-hide');
-        }
-    });
-}
-
-// === PAGE INITIALIZATION ===
-function initializePage() {
-    const loginForm = document.getElementById('loginForm');
+// Initialize register page when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
-    
-    if (loginForm) {
-        initLoginPage();
-    } else if (registerForm) {
+    if (registerForm) {
         initRegisterPage();
     }
-}
-
-document.addEventListener('DOMContentLoaded', initializePage);
-
-// === ADDITIONAL UTILITY FUNCTIONS ===
-function resetForm(formId) {
-    const form = document.getElementById(formId);
-    if (form) {
-        form.reset();
-        
-        form.querySelectorAll('input').forEach(input => {
-            input.classList.remove('error', 'success');
-        });
-        
-        form.querySelectorAll('.field-error').forEach(error => {
-            error.remove();
-        });
-        
-        const errorMsg = form.querySelector('.error-message');
-        const successMsg = form.querySelector('.success-message');
-        if (errorMsg) errorMsg.style.display = 'none';
-        if (successMsg) successMsg.style.display = 'none';
-    }
-}
-
-function togglePasswordVisibility(inputId, toggleButtonId) {
-    const passwordInput = document.getElementById(inputId);
-    const toggleButton = document.getElementById(toggleButtonId);
-
-    if (passwordInput && toggleButton) {
-        const icon = toggleButton.querySelector("i");
-
-        if (passwordInput.type === "password") {
-            passwordInput.type = "text";
-            if (icon) {
-                icon.classList.remove("fa-eye");
-                icon.classList.add("fa-eye-slash");
-            }
-        } else {
-            passwordInput.type = "password";
-            if (icon) {
-                icon.classList.remove("fa-eye-slash");
-                icon.classList.add("fa-eye");
-            }
-        }
-    }
-}
-
-function showStoredUsers() {
-    console.log('Stored Users:', userData);
-    if (Object.keys(userData).length === 0) {
-        console.log('No users registered yet.');
-    } else {
-        const userList = Object.keys(userData).map(key => {
-            const user = userData[key];
-            return `${user.firstName} ${user.lastName} (${user.email}) - ${user.accountType}`;
-        }).join('\n');
-        console.log('Registered Users:\n' + userList);
-    }
-}
+});

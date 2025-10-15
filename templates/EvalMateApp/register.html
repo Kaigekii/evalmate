@@ -156,6 +156,10 @@
         </div>
     </div>
 
-    <script src="{% static 'EvalMateApp/js/script.js' %}?v=7"></script>
+    <!-- UPDATED: Load all JS files in correct order -->
+    <script src="{% static 'EvalMateApp/js/storage.js' %}"></script>
+    <script src="{% static 'EvalMateApp/js/validation.js' %}"></script>
+    <script src="{% static 'EvalMateApp/js/utils.js' %}"></script>
+    <script src="{% static 'EvalMateApp/js/register.js' %}"></script>
 </body>
 </html>

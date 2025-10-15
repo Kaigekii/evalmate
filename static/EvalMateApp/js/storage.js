@@ -13,4 +13,4 @@ function showStoredUsers() {
         }).join('\n');
         console.log('Registered Users:\n' + userList);
     }
-}
+}                   

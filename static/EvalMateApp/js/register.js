@@ -1,6 +1,8 @@
 // === REGISTER PAGE FUNCTIONALITY ===
 
 function initRegisterPage() {
+    console.log('Initializing register page...');
+    
     const typeButtons = document.querySelectorAll('.type-btn');
     const accountTypeInput = document.getElementById('accountType');
 
@@ -87,7 +89,7 @@ function initRegisterPage() {
                 // Check if email already exists
                 const accountType = document.getElementById('accountType').value;
                 const userKey = `${value}_${accountType}`;
-                if (userData[userKey]) {
+                if (typeof userData !== 'undefined' && userData[userKey]) {
                     showFieldError('email', 'Email already exists');
                 } else {
                     showFieldSuccess('email');
@@ -113,9 +115,13 @@ function initRegisterPage() {
                 showFieldError('username', 'Username must be at least 3 characters');
             } else {
                 // Check if username already exists
-                const usernameExists = Object.values(userData).some(user => user.username === value);
-                if (usernameExists) {
-                    showFieldError('username', 'Username already exists');
+                if (typeof userData !== 'undefined') {
+                    const usernameExists = Object.values(userData).some(user => user.username === value);
+                    if (usernameExists) {
+                        showFieldError('username', 'Username already exists');
+                    } else {
+                        showFieldSuccess('username');
+                    }
                 } else {
                     showFieldSuccess('username');
                 }
@@ -236,11 +242,11 @@ function initRegisterPage() {
         });
     }
     
-    // Institution
-    const institutionInput = document.getElementById('institution');
-    if (institutionInput) {
-        institutionInput.addEventListener('blur', function() {
-            const value = this.value.trim();
+    // Institution (Dropdown)
+    const institutionSelect = document.getElementById('institution');
+    if (institutionSelect) {
+        institutionSelect.addEventListener('blur', function() {
+            const value = this.value;
             if (!value) {
                 showFieldError('institution', 'Institution is required');
             } else {
@@ -248,18 +254,19 @@ function initRegisterPage() {
             }
         });
         
-        institutionInput.addEventListener('input', function() {
-            if (this.value.trim()) {
+        institutionSelect.addEventListener('change', function() {
+            if (this.value) {
                 clearFieldError('institution');
+                showFieldSuccess('institution');
             }
         });
     }
     
-    // Department
-    const departmentInput = document.getElementById('department');
-    if (departmentInput) {
-        departmentInput.addEventListener('blur', function() {
-            const value = this.value.trim();
+    // Department (Dropdown)
+    const departmentSelect = document.getElementById('department');
+    if (departmentSelect) {
+        departmentSelect.addEventListener('blur', function() {
+            const value = this.value;
             if (!value) {
                 showFieldError('department', 'Department is required');
             } else {
@@ -267,12 +274,16 @@ function initRegisterPage() {
             }
         });
         
-        departmentInput.addEventListener('input', function() {
-            if (this.value.trim()) {
+        departmentSelect.addEventListener('change', function() {
+            if (this.value) {
                 clearFieldError('department');
+                showFieldSuccess('department');
             }
         });
     }
+
+    // Note: initInstitutionDepartment() is now called automatically in institutions-data.js
+    console.log('Register page initialization complete');
 }
 
 // Helper function to update individual requirement UI
@@ -341,7 +352,7 @@ function validatePasswordStrength() {
 }
 
 // Enhanced registration validation
-function handleRegister() {
+function handleRegister(event) {
     const formData = {
         accountType: document.getElementById('accountType').value,
         firstName: document.getElementById('firstName').value.trim(),
@@ -352,92 +363,66 @@ function handleRegister() {
         confirmPassword: document.getElementById('password2').value,
         studentId: document.getElementById('studentId').value.trim(),
         phoneNumber: document.getElementById('phoneNumber').value.trim(),
-        institution: document.getElementById('institution').value.trim(),
-        department: document.getElementById('department').value.trim()
+        institution: document.getElementById('institution').value,
+        department: document.getElementById('department').value
     };
-
-    const registerBtn = document.querySelector('.register-btn');
 
     document.getElementById('errorMessage').style.display = 'none';
     document.getElementById('successMessage').style.display = 'none';
 
+    // Client-side validation
     const validationError = validateRegistrationForm(formData);
     if (validationError) {
+        event.preventDefault(); // Only prevent if validation fails
         showMessage('errorMessage', validationError, true);
-        return;
+        return false;
     }
-
-    registerBtn.classList.add('loading');
-    registerBtn.disabled = true;
-
-    setTimeout(() => {
-        const userKey = `${formData.email}_${formData.accountType}`;
-        
-        // Check if email already exists
-        if (userData[userKey]) {
-            showMessage('errorMessage', 'Email already exists', true);
-            registerBtn.classList.remove('loading');
-            registerBtn.disabled = false;
-            return;
-        }
-        
-        // Check if username already exists
-        const usernameExists = Object.values(userData).some(user => user.username === formData.username);
-        if (usernameExists) {
-            showMessage('errorMessage', 'Username already exists', true);
-            registerBtn.classList.remove('loading');
-            registerBtn.disabled = false;
-            return;
-        }
-        
-        // If validation passes, create user
-        userData[userKey] = {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            username: formData.username,
-            password: formData.password,
-            accountType: formData.accountType,
-            studentId: formData.studentId,
-            phoneNumber: formData.phoneNumber,
-            institution: formData.institution,
-            department: formData.department,
-            createdAt: new Date().toISOString()
-        };
-
-        showMessage('successMessage', 'Account created successfully! You can now log in.');
-        
-        document.getElementById('registerForm').reset();
-        
-        document.querySelectorAll('.type-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-type') === 'student') {
-                btn.classList.add('active');
-            }
-        });
-        document.getElementById('accountType').value = 'student';
-        
-        document.querySelectorAll('input').forEach(input => {
-            input.classList.remove('error', 'success');
-        });
-        
-        document.querySelectorAll('.field-error').forEach(error => {
-            error.remove();
-        });
-
-        setTimeout(() => {
-            console.log('Registration successful');
-        }, 2000);
-
-        registerBtn.classList.remove('loading');
-        registerBtn.disabled = false;
-    }, 2000);
+    
+    // Allow form to submit naturally to Django backend
+    // The form will now POST to the server with all the correct values
+    return true;
 }
 
 // Initialize register page when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         initRegisterPage();
+        
+        // Add form submit handler
+        registerForm.addEventListener('submit', function(e) {
+            // handleRegister will decide whether to prevent default or allow submission
+            const shouldSubmit = handleRegister(e);
+            if (!shouldSubmit) {
+                e.preventDefault();
+            }
+            // If shouldSubmit is true, form will submit naturally to Django
+        });
     }
 });
+
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showMessage(elementId, message, isError = false) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = message;
+        element.style.display = 'block';
+        element.className = isError ? 'message-box error' : 'message-box success';
+    }
+}

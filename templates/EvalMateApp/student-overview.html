@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalMate - Student Dashboard</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/student-overview.css' %}">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar__header">
+                <div class="sidebar__logo">
+                    <div class="logo__square">EM</div>
+                    <span class="logo__text">EvalMate</span>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">DASHBOARD</h3>
+                <nav class="sidebar__nav">
+                    <a href="#overview" class="sidebar__link sidebar__link--active" data-section="overview">
+                        <i class="fas fa-th-large"></i>
+                        <span>Overview</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Evaluations Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">EVALUATIONS</h3>
+                <nav class="sidebar__nav">
+                    <a href="#pending" class="sidebar__link" data-section="pending">
+                        <i class="far fa-file-alt"></i>
+                        <span>Pending Evaluations</span>
+                    </a>
+                    <a href="#history" class="sidebar__link" data-section="history">
+                        <i class="fas fa-history"></i>
+                        <span>History</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Account Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">ACCOUNT</h3>
+                <nav class="sidebar__nav">
+                    <a href="#profile" class="sidebar__link" data-section="profile">
+                        <i class="far fa-user"></i>
+                        <span>Profile</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Sign Out -->
+            <div class="sidebar__footer">
+                <a href="{% url 'logout' %}" class="sidebar__link sidebar__link--signout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navigation Bar -->
+            <header class="topnav">
+                <div class="topnav__left">
+                    <div class="topnav__logo">
+                        <div class="logo__square">EM</div>
+                        <span class="logo__text">EvalMate</span>
+                    </div>
+                </div>
+
+                <div class="topnav__actions">
+                    <!-- Search Bar -->
+                    <div class="search-bar">
+                        <i class="fas fa-search search-bar__icon"></i>
+                        <input 
+                            type="text" 
+                            class="search-bar__input" 
+                            placeholder="Search evaluations..."
+                            id="searchInput"
+                        >
+                    </div>
+
+                    <!-- Notifications -->
+                    <button class="topnav__notification" id="notificationBtn" aria-label="Notifications">
+                        <i class="far fa-bell"></i>
+                        <span class="notification__badge" id="notificationBadge">0</span>
+                    </button>
+
+                    <!-- User Profile -->
+                    <div class="topnav__user">
+                        <div class="user__avatar">
+                            {% if profile.first_name and profile.last_name %}
+                                {{ profile.first_name|first}}{{ profile.last_name|first }}
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user__info">
+                            <span class="user__name">{{ profile.first_name }} {{ profile.last_name }}</span>
+                            <span class="user__role">{{ profile.account_type|title }}</span>
+                        </div>
+                        <i class="fas fa-chevron-down user__dropdown-icon"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content Container - All sections in one page -->
+            <div class="content" id="contentContainer">
+                
+                <!-- ==================== OVERVIEW SECTION ==================== -->
+                <section id="overviewSection" class="content-section content-section--active">
+                    <!-- Welcome Section -->
+                    <div class="welcome-section">
+                        <div class="welcome-banner">
+                            <h1 class="welcome-title">Welcome back, {{ profile.first_name }}! 👋</h1>
+                            <p class="welcome-subtitle">Ready to continue your evaluation journey? Here's your personalized overview.</p>
+                            <p class="welcome-date" id="currentDate">Friday, October 17, 2025</p>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="stats-section">
+                        <div class="stats-grid">
+                            <!-- Pending Evaluations Card -->
+                            <div class="stat-card stat-card--dark">
+                                <div class="stat-card__icon">
+                                    <i class="far fa-file-alt"></i>
+                                </div>
+                                <div class="stat-card__content">
+                                    <h2 class="stat-card__value" id="pendingCount">0</h2>
+                                    <p class="stat-card__label">Pending Evaluations</p>
+                                </div>
+                            </div>
+
+                            <!-- Completed Evaluations Card -->
+                            <div class="stat-card stat-card--dark">
+                                <div class="stat-card__icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-card__content">
+                                    <h2 class="stat-card__value" id="completedCount">0</h2>
+                                    <p class="stat-card__label">Completed Evaluations</p>
+                                </div>
+                            </div>
+
+                            <!-- Completion Rate Card -->
+                            <div class="stat-card stat-card--light">
+                                <div class="stat-card__icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div class="stat-card__content">
+                                    <h2 class="stat-card__value" id="completionRate">0%</h2>
+                                    <p class="stat-card__label">Completion Rate</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Deadlines Section -->
+                    <div class="deadlines-section">
+                        <div class="section-header">
+                            <h2 class="section-title">Upcoming Deadlines</h2>
+                            <p class="section-subtitle">Don't miss these important evaluation deadlines</p>
+                        </div>
+
+                        <div class="deadlines-container">
+                            <!-- Empty State -->
+                            <div class="empty-state" id="emptyDeadlines">
+                                <div class="empty-state__icon">
+                                    <i class="far fa-calendar-check"></i>
+                                </div>
+                                <h3 class="empty-state__title">No Upcoming Deadlines</h3>
+                                <p class="empty-state__text">You're all caught up! No pending evaluation deadlines at the moment.</p>
+                            </div>
+
+                            <!-- Deadlines List (will be populated by JS) -->
+                            <div class="deadlines-list" id="deadlinesList" style="display: none;">
+                                <!-- Deadline cards will be inserted here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== PENDING EVALUATIONS SECTION ==================== -->
+                <section id="pendingSection" class="content-section">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <div class="page-header__main">
+                            <h1 class="page-title">Pending Evaluations</h1>
+                            <p class="page-subtitle">Complete your peer evaluations to help improve team collaboration</p>
+                        </div>
+
+                        <div class="page-header__stats">
+                            <div class="header-stat">
+                                <span class="header-stat__value" id="totalPending">0</span>
+                                <span class="header-stat__label">TOTAL PENDING</span>
+                            </div>
+                            <div class="header-stat">
+                                <span class="header-stat__value" id="dueToday">0</span>
+                                <span class="header-stat__label">DUE TODAY</span>
+                            </div>
+                            <button class="btn-refresh" id="refreshBtn">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+
+                        <div class="page-header__meta">
+                            <span class="last-updated">Last updated: <span id="lastUpdated">12:02:29 AM</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Filters and Sort -->
+                    <div class="controls">
+                        <div class="controls__filters">
+                            <span class="controls__label">Filter by:</span>
+                            <div class="filter-buttons">
+                                <button class="filter-btn filter-btn--active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="urgent">Urgent</button>
+                                <button class="filter-btn" data-filter="in-progress">In Progress</button>
+                                <button class="filter-btn" data-filter="not-started">Not Started</button>
+                            </div>
+                        </div>
+
+                        <div class="controls__sort">
+                            <label for="sortSelect" class="controls__label">Sort by:</label>
+                            <select id="sortSelect" class="sort-select">
+                                <option value="due-date">Due Date</option>
+                                <option value="title">Title</option>
+                                <option value="status">Status</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Evaluations Container -->
+                    <div class="evaluations-container">
+                        <!-- Empty State -->
+                        <div class="empty-state" id="emptyStatePending">
+                            <div class="empty-state__icon">
+                                <i class="far fa-comment-dots"></i>
+                            </div>
+                            <h3 class="empty-state__title">No evaluations found</h3>
+                            <p class="empty-state__text">You're all caught up! No evaluations match the current filter.</p>
+                        </div>
+
+                        <!-- Evaluations List (will be populated by JS) -->
+                        <div class="evaluations-list" id="evaluationsList" style="display: none;">
+                            <!-- Evaluation cards will be inserted here by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== HISTORY SECTION ==================== -->
+                <section id="historySection" class="content-section">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <h1 class="page-title">Evaluation History</h1>
+                        <p class="page-subtitle">View all your completed peer evaluations and their details</p>
+                    </div>
+
+                    <!-- Filter Tabs -->
+                    <div class="filter-tabs">
+                        <span class="filter-tabs__label">Show:</span>
+                        <div class="filter-buttons">
+                            <button class="filter-btn filter-btn--active" data-filter="all">All Evaluations</button>
+                            <button class="filter-btn" data-filter="recent">Recent (7 days)</button>
+                            <button class="filter-btn" data-filter="by-course">By Course</button>
+                        </div>
+                    </div>
+
+                    <!-- History Container -->
+                    <div class="history-container">
+                        <!-- Empty State -->
+                        <div class="empty-state" id="emptyStateHistory">
+                            <div class="empty-state__icon">
+                                <i class="far fa-file-alt"></i>
+                                <i class="fas fa-pencil-alt empty-state__icon-accent"></i>
+                            </div>
+                            <h3 class="empty-state__title">No Evaluations Completed Yet</h3>
+                            <p class="empty-state__text">Start completing peer evaluations to see your history here.</p>
+                            <button class="btn btn--primary" onclick="navigateToSection('pending')">View Pending Evaluations</button>
+                        </div>
+
+                        <!-- History List (will be populated by JS) -->
+                        <div class="history-list" id="historyList" style="display: none;">
+                            <!-- History cards will be inserted here by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== PROFILE SECTION ==================== -->
+                <section id="profileSection" class="content-section">
+                    <!-- Page Header -->
+                    <div class="page-header">
+                        <h1 class="page-title">My Profile</h1>
+                        <p class="page-subtitle">Manage your personal information and preferences</p>
+                    </div>
+
+                    <!-- Profile Picture Section -->
+                    <div class="profile-picture-section">
+                        <div class="profile-picture-card">
+                            <div class="profile-picture">
+                                <div class="profile-picture__avatar" id="profileAvatar">
+                                    {% if profile.first_name and profile.last_name %}
+                                        {{ profile.first_name|first }}{{ profile.last_name|first }}
+                                    {% else %}
+                                        MAC
+                                    {% endif %}
+                                </div>
+                                <button class="profile-picture__upload" id="uploadBtn">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                                <input type="file" id="profilePictureInput" accept="image/jpeg,image/png" style="display: none;">
+                            </div>
+                            <div class="profile-picture__info">
+                                <h3 class="profile-picture__title">Profile Picture</h3>
+                                <p class="profile-picture__description">Upload a photo to personalize your profile. JPG, PNG up to 5MB.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Tabs -->
+                    <div class="profile-tabs">
+                        <button class="profile-tab profile-tab--active" data-tab="personal">
+                            <i class="far fa-user"></i>
+                            <span>Personal Info</span>
+                        </button>
+                        <button class="profile-tab" data-tab="academic">
+                            <i class="fas fa-graduation-cap"></i>
+                            <span>Academic</span>
+                        </button>
+                        <button class="profile-tab" data-tab="security">
+                            <i class="fas fa-lock"></i>
+                            <span>Security</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab Content Container -->
+                    <div class="tab-content-container">
+                        <!-- Personal Info Tab -->
+                        <div class="tab-content tab-content--active" id="personalTab">
+                            <div class="form-section">
+                                <h2 class="form-section__title">Personal Information</h2>
+                                <p class="form-section__subtitle">Your basic personal details</p>
+
+                                <form id="personalInfoForm" class="profile-form">
+                                    {% csrf_token %}
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="firstName" class="form-label">First Name</label>
+                                            <input 
+                                                type="text" 
+                                                id="firstName" 
+                                                name="first_name" 
+                                                class="form-input" 
+                                                value="{{ profile.first_name }}"
+                                                required
+                                            >
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="lastName" class="form-label">Last Name</label>
+                                            <input 
+                                                type="text" 
+                                                id="lastName" 
+                                                name="last_name" 
+                                                class="form-input" 
+                                                value="{{ profile.last_name }}"
+                                                required
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="email" class="form-label">Email Address</label>
+                                            <input 
+                                                type="email" 
+                                                id="email" 
+                                                name="email" 
+                                                class="form-input" 
+                                                value="{{ profile.email }}"
+                                                required
+                                            >
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="phone" class="form-label">Phone Number</label>
+                                            <input 
+                                                type="tel" 
+                                                id="phone" 
+                                                name="phone_number" 
+                                                class="form-input" 
+                                                value="{{ profile.phone_number }}"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="dateOfBirth" class="form-label">Date of Birth</label>
+                                            <input 
+                                                type="date" 
+                                                id="dateOfBirth" 
+                                                name="date_of_birth" 
+                                                class="form-input"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn--primary">Save Changes</button>
+                                        <button type="reset" class="btn btn--secondary">Reset Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Academic Tab -->
+                        <div class="tab-content" id="academicTab">
+                            <div class="form-section">
+                                <h2 class="form-section__title">Academic Information</h2>
+                                <p class="form-section__subtitle">Your academic details and progress</p>
+
+                                <form id="academicInfoForm" class="profile-form">
+                                    {% csrf_token %}
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="studentId" class="form-label">Student ID</label>
+                                            <input 
+                                                type="text" 
+                                                id="studentId" 
+                                                name="student_id" 
+                                                class="form-input" 
+                                                value="{{ profile.student_id }}"
+                                                disabled
+                                            >
+                                            <small class="form-help">Student ID cannot be changed</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="major" class="form-label">Major</label>
+                                            <select id="major" name="major" class="form-select">
+                                                <option value="">Select Major</option>
+                                                <option value="Information Technology">Information Technology</option>
+                                                <option value="Computer Science">Computer Science</option>
+                                                <option value="Software Engineering">Software Engineering</option>
+                                                <option value="Data Science">Data Science</option>
+                                                <option value="Cybersecurity">Cybersecurity</option>
+                                                <option value="Business Administration">Business Administration</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="academicYear" class="form-label">Academic Year</label>
+                                            <select id="academicYear" name="academic_year" class="form-select">
+                                                <option value="">Select Year</option>
+                                                <option value="Freshman">Freshman</option>
+                                                <option value="Sophomore">Sophomore</option>
+                                                <option value="Junior">Junior</option>
+                                                <option value="Senior">Senior</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="expectedGraduation" class="form-label">Expected Graduation</label>
+                                            <input 
+                                                type="date" 
+                                                id="expectedGraduation" 
+                                                name="expected_graduation" 
+                                                class="form-input"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="currentGPA" class="form-label">Current GPA</label>
+                                            <input 
+                                                type="number" 
+                                                id="currentGPA" 
+                                                name="current_gpa" 
+                                                class="form-input" 
+                                                step="0.01" 
+                                                min="0" 
+                                                max="4.0"
+                                                placeholder="0.00"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn--primary">Save Changes</button>
+                                        <button type="reset" class="btn btn--secondary">Reset Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Security Tab -->
+                        <div class="tab-content" id="securityTab">
+                            <div class="form-section">
+                                <h2 class="form-section__title">Security Settings</h2>
+                                <p class="form-section__subtitle">Manage your account security</p>
+
+                                <!-- Password Section -->
+                                <div class="security-card">
+                                    <div class="security-card__content">
+                                        <h3 class="security-card__title">Password</h3>
+                                        <p class="security-card__description">Last changed 30 days ago</p>
+                                    </div>
+                                    <button class="btn btn--outline" id="changePasswordBtn">Change Password</button>
+                                </div>
+
+                                <!-- Two-Factor Authentication Section -->
+                                <div class="security-card">
+                                    <div class="security-card__content">
+                                        <h3 class="security-card__title">Two-Factor Authentication</h3>
+                                        <p class="security-card__description">Add an extra layer of security to your account</p>
+                                    </div>
+                                    <button class="btn btn--outline" id="enable2FABtn">Enable 2FA</button>
+                                </div>
+
+                                <!-- Active Sessions Section -->
+                                <div class="security-card">
+                                    <div class="security-card__content">
+                                        <h3 class="security-card__title">Active Sessions</h3>
+                                        <p class="security-card__description">Manage devices that have access to your account</p>
+                                    </div>
+                                    <button class="btn btn--outline" id="viewSessionsBtn">View Sessions</button>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn--primary">Save Changes</button>
+                                    <button type="button" class="btn btn--secondary">Reset Changes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'EvalMateApp/js/student-overview.js' %}"></script>
+</body>
+</html>

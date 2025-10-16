@@ -93,6 +93,7 @@ def logout_view(request):
     return redirect('login')
 
 def student_dashboard_view(request):
+    """Student Dashboard - Single Page Application (SPA)"""
     if not request.user.is_authenticated:
         return redirect('login')
     
@@ -109,7 +110,7 @@ def student_dashboard_view(request):
         'user': request.user,
         'profile': profile
     }
-    return render(request, 'EvalMateApp/student-dashboard.html', context)
+    return render(request, 'EvalMateApp/student-overview.html', context)
 
 def faculty_dashboard_view(request):
     """Faculty dashboard view (placeholder - you'll need to create the template)"""

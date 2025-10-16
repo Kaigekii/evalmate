@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalMate - Faculty Dashboard</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar__header">
+                <div class="sidebar__logo">
+                    <div class="logo__square"></div>
+                    <span class="logo__text">EvalMate</span>
+                </div>
+                <button class="sidebar__toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">DASHBOARD</h3>
+                <nav class="sidebar__nav">
+                    <a href="#overview" class="sidebar__link sidebar__link--active">
+                        <i class="fas fa-th-large"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="#analytics" class="sidebar__link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Management Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">MANAGEMENT</h3>
+                <nav class="sidebar__nav">
+                    <a href="#form-builder" class="sidebar__link">
+                        <i class="far fa-file-alt"></i>
+                        <span>Form Builder</span>
+                    </a>
+                    <a href="#reports" class="sidebar__link">
+                        <i class="far fa-file-alt"></i>
+                        <span>Reports</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Sign Out -->
+            <div class="sidebar__footer">
+                <a href="{% url 'logout' %}" class="sidebar__link sidebar__link--signout" id="signOutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navigation Bar -->
+            <header class="topnav">
+                <div class="topnav__left">
+                    <div class="topnav__logo">
+                        <div class="logo__square"></div>
+                        <span class="logo__text">EvalMate</span>
+                    </div>
+                </div>
+
+                <div class="topnav__actions">
+                    <!-- Search Bar -->
+                    <div class="search-bar">
+                        <i class="fas fa-search search-bar__icon"></i>
+                        <input 
+                            type="text" 
+                            class="search-bar__input" 
+                            placeholder="Search evaluations, groups..."
+                            id="searchInput"
+                        >
+                    </div>
+
+                    <!-- User Profile -->
+                    <div class="topnav__user">
+                        <div class="user__info">
+                            <span class="user__name">{{ profile.first_name }} {{ profile.last_name }}</span>
+                            <span class="user__role">{{ profile.account_type }}</span>
+                        </div>
+                        <div class="user__avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="content">
+                <!-- Hero Section -->
+                <section class="hero">
+                    <div class="hero__content">
+                        <h1 class="hero__title">Faculty Dashboard</h1>
+                        <p class="hero__subtitle">Ready to continue your evaluation journey? Here's your personalized overview.</p>
+                    </div>
+                </section>
+
+                <!-- Quick Actions Section -->
+                <section class="quick-actions">
+                    <div class="quick-actions__header">
+                        <div class="header__line"></div>
+                        <h2 class="quick-actions__title">Quick Actions</h2>
+                    </div>
+                    <p class="quick-actions__subtitle">Manage your evaluations and access key features quickly</p>
+
+                    <div class="actions-grid">
+                        <!-- Create New Evaluation Card -->
+                        <div class="action-card action-card--dark">
+                            <div class="action-card__icon action-card__icon--dark">
+                                <i class="far fa-file-alt"></i>
+                            </div>
+                            <div class="action-card__content">
+                                <h3 class="action-card__title">Create New Evaluation</h3>
+                                <p class="action-card__description">Design and publish evaluation forms for your students</p>
+                            </div>
+                            <button class="action-card__button">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- View Reports Card -->
+                        <div class="action-card action-card--green">
+                            <div class="action-card__icon action-card__icon--green">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="action-card__content">
+                                <h3 class="action-card__title">View Reports</h3>
+                                <p class="action-card__description">Analyze submission reports and performance data</p>
+                            </div>
+                            <button class="action-card__button">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Activities Section -->
+                <section class="recent-activities">
+                    <div class="recent-activities__header">
+                        <div class="header__line"></div>
+                        <h2 class="recent-activities__title">Recent Activities</h2>
+                    </div>
+                    <p class="recent-activities__subtitle">Latest submissions from your students</p>
+
+                    <!-- Activities List -->
+                    <div class="activities-list" id="activitiesList">
+                        <!-- Empty State (shown when no activities) -->
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-state__icon">
+                                <i class="far fa-clipboard"></i>
+                            </div>
+                            <h3 class="empty-state__title">No Recent Activities</h3>
+                            <p class="empty-state__text">
+                                When students submit evaluations, they'll appear here.
+                            </p>
+                        </div>
+
+                        <!-- Activity Card Example (will be generated by JS) -->
+                        <!-- Uncomment to test:
+                        <div class="activity-card">
+                            <div class="activity-card__avatar">
+                                <span>SN</span>
+                            </div>
+                            <div class="activity-card__content">
+                                <h3 class="activity-card__title">Comprehensive Peer Evaluation</h3>
+                                <div class="activity-card__meta">
+                                    <span class="meta__item">
+                                        <strong>Studs #1 - Team TEAM_4</strong>
+                                    </span>
+                                    <span class="meta__item">
+                                        <i class="fas fa-users"></i> 3 teammates
+                                    </span>
+                                    <span class="meta__item">
+                                        <i class="fas fa-star"></i> 2.7/5 avg
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="activity-card__actions">
+                                <span class="activity-card__time">1w ago</span>
+                                <button class="btn-link">View Details</button>
+                            </div>
+                        </div>
+                        -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'EvalMateApp/js/faculty-dashboard.js' %}"></script>
+</body>
+</html>

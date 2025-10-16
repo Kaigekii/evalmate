@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvalMate - Student Dashboard</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/student-dashboard.css' %}">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar__header">
+                <div class="sidebar__logo">
+                    <div class="logo__square"></div>
+                    <span class="logo__text">EvalMate</span>
+                </div>
+                <button class="sidebar__toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">DASHBOARD</h3>
+                <nav class="sidebar__nav">
+                    <a href="#overview" class="sidebar__link">
+                        <i class="fas fa-th-large"></i>
+                        <span>Overview</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Evaluations Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">EVALUATIONS</h3>
+                <nav class="sidebar__nav">
+                    <a href="#pending" class="sidebar__link">
+                        <i class="far fa-file-alt"></i>
+                        <span>Pending Evaluations</span>
+                    </a>
+                    <a href="#history" class="sidebar__link sidebar__link--active">
+                        <i class="far fa-clock"></i>
+                        <span>History</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Account Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">ACCOUNT</h3>
+                <nav class="sidebar__nav">
+                    <a href="#profile" class="sidebar__link">
+                        <i class="far fa-user"></i>
+                        <span>Profile</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Sign Out -->
+            <div class="sidebar__footer">
+                <a href="{% url 'logout' %}" class="sidebar__link sidebar__link--signout" id="signOutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navigation Bar -->
+            <header class="topnav">
+                <div class="topnav__breadcrumb">
+                    <span class="breadcrumb__item">Student History</span>
+                    <span class="breadcrumb__separator">/</span>
+                    <span class="breadcrumb__item breadcrumb__item--active">Evaluation</span>
+                </div>
+
+                <div class="topnav__actions">
+                    <!-- Search Bar -->
+                    <div class="search-bar">
+                        <i class="fas fa-search search-bar__icon"></i>
+                        <input 
+                            type="text" 
+                            class="search-bar__input" 
+                            placeholder="Search evaluations, groups..."
+                            id="searchInput"
+                        >
+                    </div>
+
+                    <!-- Notifications -->
+                    <button class="topnav__notification" id="notificationBtn" aria-label="Notifications">
+                        <i class="far fa-bell"></i>
+                        <span class="notification__badge">3</span>
+                    </button>
+
+                    <!-- User Profile -->
+                    <div class="topnav__user">
+                        <div class="user__info">
+                            <span class="user__name">{{ profile.first_name }} {{ profile.last_name }}</span>
+                            <span class="user__role">{{ profile.account_type }}</span>
+                        </div>
+                        <div class="user__avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="content">
+                <div class="content__header">
+                    <!-- EvalMate Logo -->
+                    <div class="content__logo">
+                        <div class="logo__square"></div>
+                        <span class="logo__text">EvalMate</span>
+                    </div>
+
+                    <h1 class="content__title">Evaluation History</h1>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="filter-tabs">
+                    <span class="filter-tabs__label">Show:</span>
+                    <div class="filter-tabs__buttons">
+                        <button class="filter-tabs__button filter-tabs__button--active" data-filter="all">
+                            All Evaluations
+                        </button>
+                        <button class="filter-tabs__button" data-filter="recent">
+                            Recent (7 days)
+                        </button>
+                        <button class="filter-tabs__button" data-filter="course">
+                            By Course
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Evaluation Content -->
+                <div class="evaluation-container">
+                    <!-- Empty State -->
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-state__icon">
+                            <i class="far fa-clipboard"></i>
+                        </div>
+                        <h2 class="empty-state__title">No Evaluations Completed Yet</h2>
+                        <p class="empty-state__text">
+                            Start completing peer evaluations to see your history here.
+                        </p>
+                        <button class="btn btn--primary" id="viewPendingBtn">
+                            View Pending Evaluations
+                        </button>
+                    </div>
+
+                    <!-- Evaluation List (Hidden initially, shown when data exists) -->
+                    <div class="evaluation-list" id="evaluationList" style="display: none;">
+                        <!-- Example evaluation card (will be generated by JS) -->
+                        <div class="evaluation-card">
+                            <div class="evaluation-card__header">
+                                <h3 class="evaluation-card__title">Software Engineering Project</h3>
+                                <span class="evaluation-card__date">Completed: Oct 10, 2025</span>
+                            </div>
+                            <div class="evaluation-card__body">
+                                <p class="evaluation-card__info">
+                                    <strong>Group:</strong> Team Alpha
+                                </p>
+                                <p class="evaluation-card__info">
+                                    <strong>Members Evaluated:</strong> 4
+                                </p>
+                            </div>
+                            <div class="evaluation-card__footer">
+                                <button class="btn btn--secondary btn--sm">View Details</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Dropdown (Hidden by default) -->
+    <div class="notification-dropdown" id="notificationDropdown" style="display: none;">
+        <div class="notification-dropdown__header">
+            <h3>Notifications</h3>
+            <button class="notification-dropdown__close" id="closeNotifications">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="notification-dropdown__body">
+            <div class="notification-item notification-item--unread">
+                <i class="fas fa-info-circle notification-item__icon"></i>
+                <div class="notification-item__content">
+                    <p class="notification-item__text">New evaluation available for Software Engineering</p>
+                    <span class="notification-item__time">2 hours ago</span>
+                </div>
+            </div>
+            <div class="notification-item notification-item--unread">
+                <i class="fas fa-check-circle notification-item__icon"></i>
+                <div class="notification-item__content">
+                    <p class="notification-item__text">You completed evaluation for Database Systems</p>
+                    <span class="notification-item__time">1 day ago</span>
+                </div>
+            </div>
+            <div class="notification-item">
+                <i class="fas fa-bell notification-item__icon"></i>
+                <div class="notification-item__content">
+                    <p class="notification-item__text">Reminder: Evaluation due in 2 days</p>
+                    <span class="notification-item__time">3 days ago</span>
+                </div>
+            </div>
+        </div>
+        <div class="notification-dropdown__footer">
+            <a href="#" class="notification-dropdown__link">View All Notifications</a>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'EvalMateApp/js/student-dashboard.js' %}"></script>
+</body>
+</html>

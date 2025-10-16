@@ -122,15 +122,20 @@
                         </div>
                     </div>
 
+                    <!-- UPDATED: Institution and Department as Dropdowns -->
                     <div class="institution-group">
                         <div class="input-group">
                             <label for="institution">Institution</label>
-                            <input type="text" name="institution" id="institution" placeholder="Enter your institution" required>
+                            <select name="institution" id="institution" required>
+                                <option value="">Select your institution</option>
+                            </select>
                             <span class="field-error" id="institutionError"></span>
                         </div>
                         <div class="input-group">
                             <label for="department">Department</label>
-                            <input type="text" name="department" id="department" placeholder="Enter your department" required>
+                            <select name="department" id="department" required disabled>
+                                <option value="">Select your department</option>
+                            </select>
                             <span class="field-error" id="departmentError"></span>
                         </div>
                     </div>
@@ -156,7 +161,8 @@
         </div>
     </div>
 
-    <!-- UPDATED: Load all JS files in correct order -->
+    <!-- UPDATED: Load institutions-data.js first, then other scripts -->
+    <script src="{% static 'EvalMateApp/js/institutions-data.js' %}"></script>
     <script src="{% static 'EvalMateApp/js/storage.js' %}"></script>
     <script src="{% static 'EvalMateApp/js/validation.js' %}"></script>
     <script src="{% static 'EvalMateApp/js/utils.js' %}"></script>

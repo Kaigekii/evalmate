@@ -1,153 +1,171 @@
 // === UTILITY FUNCTIONS ===
 
-// Show inline field error messages
-function showFieldError(inputId, message) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    const existingError = input.parentElement.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
-    
-    input.classList.add('error');
-    input.classList.remove('success');
-    
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'field-error';
-    errorDiv.textContent = message;
-    input.parentElement.appendChild(errorDiv);
-}
-
-function clearFieldError(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    const existingError = input.parentElement.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
-    
-    input.classList.remove('error');
-}
-
-function showFieldSuccess(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    clearFieldError(inputId);
-    input.classList.add('success');
-}
-
-// Show general message (error or success)
+// Show error message
 function showMessage(elementId, message, isError = false) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = message;
-        element.style.display = 'block';
-        
-        setTimeout(() => {
-            element.style.display = 'none';
-        }, 5000);
+    const messageElement = document.getElementById(elementId);
+    if (!messageElement) return;
+    
+    messageElement.textContent = message;
+    messageElement.style.display = 'block';
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        messageElement.style.display = 'none';
+    }, 5000);
+}
+
+// Show field-specific error
+function showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    const errorSpan = document.getElementById(`${fieldId}Error`);
+    
+    if (field) {
+        field.classList.add('error');
+        field.classList.remove('success');
+    }
+    
+    if (errorSpan) {
+        errorSpan.textContent = message;
+        errorSpan.style.display = 'block';
     }
 }
 
-// Reset form and clear all validation states
-function resetForm(formId) {
-    const form = document.getElementById(formId);
-    if (form) {
-        form.reset();
-        
-        form.querySelectorAll('input').forEach(input => {
-            input.classList.remove('error', 'success');
-        });
-        
-        form.querySelectorAll('.field-error').forEach(error => {
-            error.remove();
-        });
-        
-        const errorMsg = form.querySelector('.error-message');
-        const successMsg = form.querySelector('.success-message');
-        if (errorMsg) errorMsg.style.display = 'none';
-        if (successMsg) successMsg.style.display = 'none';
+// Show field success
+function showFieldSuccess(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorSpan = document.getElementById(`${fieldId}Error`);
+    
+    if (field) {
+        field.classList.add('success');
+        field.classList.remove('error');
+    }
+    
+    if (errorSpan) {
+        errorSpan.textContent = '';
+        errorSpan.style.display = 'none';
+    }
+}
+
+// Clear field error
+function clearFieldError(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorSpan = document.getElementById(`${fieldId}Error`);
+    
+    if (field) {
+        field.classList.remove('error');
+    }
+    
+    if (errorSpan) {
+        errorSpan.textContent = '';
+        errorSpan.style.display = 'none';
     }
 }
 
 // Toggle password visibility
-function togglePasswordVisibility(inputId, toggleButtonId) {
-    const passwordInput = document.getElementById(inputId);
-    const toggleButton = document.getElementById(toggleButtonId);
-
-    if (passwordInput && toggleButton) {
-        const icon = toggleButton.querySelector("i");
-
-        if (passwordInput.type === "password") {
-            passwordInput.type = "text";
-            if (icon) {
-                icon.classList.remove("fa-eye");
-                icon.classList.add("fa-eye-slash");
-            }
-        } else {
-            passwordInput.type = "password";
-            if (icon) {
-                icon.classList.remove("fa-eye-slash");
-                icon.classList.add("fa-eye");
-            }
+function togglePasswordVisibility(passwordId, buttonId) {
+    const passwordInput = document.getElementById(passwordId);
+    const toggleButton = document.getElementById(buttonId);
+    
+    if (!passwordInput || !toggleButton) return;
+    
+    const icon = toggleButton.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        if (icon) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+    } else {
+        passwordInput.type = 'password';
+        if (icon) {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
         }
     }
 }
 
-// Custom select dropdown functionality
-function initCustomSelect() {
-    const selectSelected = document.querySelector('.select-selected');
-    const selectItems = document.querySelector('.select-items');
-    const selectOptions = document.querySelectorAll('.select-items div');
-    const userIndicator = document.getElementById('userIndicator');
+// Format phone number (Philippine format)
+function formatPhoneNumber(value) {
+    // Remove all non-numeric characters
+    const cleaned = value.replace(/\D/g, '');
     
-    if (!selectSelected || !selectItems) return;
+    // Format as Philippine mobile number
+    if (cleaned.length === 11 && cleaned.startsWith('09')) {
+        return cleaned.replace(/(\d{4})(\d{3})(\d{4})/, '$1-$2-$3');
+    }
     
-    selectSelected.addEventListener('click', function(e) {
-        e.stopPropagation();
-        selectItems.classList.toggle('select-hide');
-    });
+    return cleaned;
+}
+
+// Debounce function for input validation
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Check if element is visible
+function isElementVisible(element) {
+    return element && element.offsetParent !== null;
+}
+
+// Scroll to element smoothly
+function scrollToElement(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// Get form data as object
+function getFormData(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return null;
     
-    selectOptions.forEach(option => {
-        option.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const value = this.getAttribute('data-value');
-            const text = this.innerHTML;
-            
-            selectSelected.innerHTML = text;
-            selectItems.classList.add('select-hide');
-            
-            let hiddenInput = document.getElementById('userType');
-            if (!hiddenInput) {
-                hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.id = 'userType';
-                hiddenInput.name = 'userType';
-                document.querySelector('.custom-select').appendChild(hiddenInput);
-            }
-            hiddenInput.value = value;
-            
-            if (userIndicator) {
-                if (value === 'faculty') {
-                    userIndicator.className = 'user-indicator faculty';
-                    userIndicator.textContent = 'F';
-                } else if (value === 'student') {
-                    userIndicator.className = 'user-indicator student';
-                    userIndicator.textContent = 'S';
-                } else {
-                    userIndicator.className = 'user-indicator';
-                    userIndicator.textContent = '?';
-                }
-            }
-        });
-    });
+    const formData = new FormData(form);
+    const data = {};
     
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.custom-select')) {
-            selectItems.classList.add('select-hide');
-        }
-    });
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    return data;
+}
+
+// Validate email format
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// Validate phone number (Philippine)
+function isValidPhoneNumber(phone) {
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(phone.replace(/[-\s\(\)]/g, ''));
+}
+
+// Safe localStorage wrapper
+function safeLocalStorage() {
+    try {
+        const test = '__storage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Log for debugging (can be disabled in production)
+function debugLog(message, data = null) {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log(`[DEBUG] ${message}`, data || '');
+    }
 }

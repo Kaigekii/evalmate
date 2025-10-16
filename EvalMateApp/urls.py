@@ -6,6 +6,10 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
+    
+    # Student Dashboard Routes (SPA)
     path('dashboard/student/', views.student_dashboard_view, name='student_dashboard'),
+    
+    # Faculty Dashboard Routes
     path('dashboard/faculty/', views.faculty_dashboard_view, name='faculty_dashboard'),
 ]

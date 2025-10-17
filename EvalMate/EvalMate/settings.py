@@ -81,6 +81,9 @@ DATABASES = {
         'PASSWORD': 'm0CBnUSNt9yF0oZj',
         'HOST': 'aws-1-us-east-2.pooler.supabase.com',
         'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 

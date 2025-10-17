@@ -81,12 +81,10 @@ DATABASES = {
         'PASSWORD': 'm0CBnUSNt9yF0oZj',
         'HOST': 'aws-1-us-east-2.pooler.supabase.com',
         'PORT': '5432',
+        'CONN_MAX_AGE': 0,  # Don't persist connections (prevents timeout)
         'OPTIONS': {
-            'sslmode': 'disable',
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
+            'sslmode': 'require',  # Supabase requires SSL
+            'connect_timeout': 10,
         },
     }
 }

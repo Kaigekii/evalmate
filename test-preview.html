@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Tab Test - EvalMate</title>
+    <link rel="stylesheet" href="static/EvalMateApp/css/form-builder.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-builder">
+        <!-- Preview Tab Content -->
+        <div class="tab-content" id="previewTabContent" style="display: block;">
+            <div class="preview-wrapper">
+                <!-- Preview Header -->
+                <div class="preview-header">
+                    <div class="preview-header__content">
+                        <div class="preview-badge">
+                            <i class="fas fa-eye"></i>
+                            Preview Mode
+                        </div>
+                        <p class="preview-subtitle">This is how students will see your evaluation form</p>
+                    </div>
+                    <button class="btn btn-secondary" id="refreshPreview">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh Preview
+                    </button>
+                </div>
+
+                <!-- Preview Form Container -->
+                <div class="preview-form-container">
+                    <div class="preview-form" id="previewForm">
+                        <!-- Form Header -->
+                        <div class="preview-form__header">
+                            <h1 class="preview-form__title">Team Member Peer Evaluation</h1>
+                            <p class="preview-form__description">Please evaluate each of your team members on their contributions, collaboration, and performance during this project.</p>
+                            
+                            <!-- Course Info -->
+                            <div class="preview-course-info" style="display: flex;">
+                                <div class="course-info-item">
+                                    <i class="fas fa-book"></i>
+                                    <span>CS 101 - Introduction to Computer Science</span>
+                                </div>
+                                <div class="course-info-item" style="display: flex;">
+                                    <i class="far fa-calendar-alt"></i>
+                                    <span>Due: <span>Dec 20, 2024 at 11:59 PM</span></span>
+                                </div>
+                            </div>
+
+                            <!-- Instructions -->
+                            <div class="preview-instructions" style="display: flex;">
+                                <div class="preview-instructions__icon">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div class="preview-instructions__content">
+                                    Please form a team of 3-5 members and evaluate each teammate honestly. Your responses will be kept confidential and used for course evaluation purposes only.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Sections -->
+                        <div class="preview-form__sections">
+                            <!-- Section 1: Team Contribution -->
+                            <div class="preview-section">
+                                <div class="preview-section__header">
+                                    <h2 class="preview-section__title">Team Contribution</h2>
+                                    <p class="preview-section__description">Rate your teammate's contribution to the project and team effort</p>
+                                </div>
+                                <div class="preview-section__content">
+                                    <div class="preview-section__questions">
+                                        <!-- Rating Question -->
+                                        <div class="preview-question">
+                                            <div class="preview-question__header">
+                                                <h3 class="preview-question__text">How would you rate their overall contribution to the project?</h3>
+                                                <span class="preview-question__required">Required</span>
+                                            </div>
+                                            <p class="preview-question__description">Consider their participation in meetings, completion of assigned tasks, and quality of work.</p>
+                                            <div class="preview-rating-scale">
+                                                <div class="preview-rating-option">
+                                                    <button class="preview-rating-button" type="button">1</button>
+                                                    <span class="preview-rating-label">Poor</span>
+                                                </div>
+                                                <div class="preview-rating-option">
+                                                    <button class="preview-rating-button" type="button">2</button>
+                                                    <span class="preview-rating-label">Below Average</span>
+                                                </div>
+                                                <div class="preview-rating-option">
+                                                    <button class="preview-rating-button" type="button">3</button>
+                                                    <span class="preview-rating-label">Average</span>
+                                                </div>
+                                                <div class="preview-rating-option">
+                                                    <button class="preview-rating-button" type="button">4</button>
+                                                    <span class="preview-rating-label">Above Average</span>
+                                                </div>
+                                                <div class="preview-rating-option">
+                                                    <button class="preview-rating-button" type="button">5</button>
+                                                    <span class="preview-rating-label">Excellent</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Text Response Question -->
+                                        <div class="preview-question">
+                                            <div class="preview-question__header">
+                                                <h3 class="preview-question__text">Please provide specific examples of their contributions</h3>
+                                                <span class="preview-question__required">Required</span>
+                                            </div>
+                                            <div class="preview-text-response">
+                                                <textarea placeholder="Enter your response here..." maxlength="500"></textarea>
+                                                <div class="preview-character-count">0 / 500 characters</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: Communication & Collaboration -->
+                            <div class="preview-section">
+                                <div class="preview-section__header">
+                                    <h2 class="preview-section__title">Communication & Collaboration</h2>
+                                    <p class="preview-section__description">Evaluate how well your teammate communicated and collaborated with the team</p>
+                                </div>
+                                <div class="preview-section__content">
+                                    <div class="preview-section__questions">
+                                        <!-- Multiple Choice Question -->
+                                        <div class="preview-question">
+                                            <div class="preview-question__header">
+                                                <h3 class="preview-question__text">How responsive was this teammate to team communications?</h3>
+                                            </div>
+                                            <div class="preview-multiple-choice">
+                                                <label class="preview-choice-option">
+                                                    <input type="radio" name="question-comm1" value="0">
+                                                    <span class="preview-choice-label">Always responded within 24 hours</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="radio" name="question-comm1" value="1">
+                                                    <span class="preview-choice-label">Usually responded within 48 hours</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="radio" name="question-comm1" value="2">
+                                                    <span class="preview-choice-label">Occasionally slow to respond</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="radio" name="question-comm1" value="3">
+                                                    <span class="preview-choice-label">Rarely responded to messages</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- Checkbox Question -->
+                                        <div class="preview-question">
+                                            <div class="preview-question__header">
+                                                <h3 class="preview-question__text">Which collaborative skills did this teammate demonstrate? (Select all that apply)</h3>
+                                            </div>
+                                            <div class="preview-multiple-choice">
+                                                <label class="preview-choice-option">
+                                                    <input type="checkbox" name="question-comm2-0" value="0">
+                                                    <span class="preview-choice-label">Active listening</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="checkbox" name="question-comm2-1" value="1">
+                                                    <span class="preview-choice-label">Constructive feedback</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="checkbox" name="question-comm2-2" value="2">
+                                                    <span class="preview-choice-label">Conflict resolution</span>
+                                                </label>
+                                                <label class="preview-choice-option">
+                                                    <input type="checkbox" name="question-comm2-3" value="3">
+                                                    <span class="preview-choice-label">Encouraging others</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Footer -->
+                        <div class="preview-form__footer" style="display: block;">
+                            <button class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane"></i>
+                                Submit Evaluation
+                            </button>
+                            <p class="preview-footer-note">* This is a preview. Buttons are disabled.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple interactivity for demonstration
+        const ratingButtons = document.querySelectorAll('.preview-rating-button');
+        ratingButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove selected class from siblings
+                const parent = this.closest('.preview-rating-scale');
+                parent.querySelectorAll('.preview-rating-button').forEach(b => {
+                    b.style.background = 'white';
+                    b.style.borderColor = 'var(--color-border)';
+                    b.style.color = 'var(--color-text-primary)';
+                });
+                // Add selected style
+                this.style.background = 'var(--color-primary)';
+                this.style.borderColor = 'var(--color-primary)';
+                this.style.color = 'white';
+            });
+        });
+
+        // Character counter for textarea
+        const textarea = document.querySelector('.preview-text-response textarea');
+        const charCount = document.querySelector('.preview-character-count');
+        if (textarea && charCount) {
+            textarea.addEventListener('input', function() {
+                charCount.textContent = `${this.value.length} / ${this.maxLength} characters`;
+            });
+        }
+    </script>
+</body>
+</html>

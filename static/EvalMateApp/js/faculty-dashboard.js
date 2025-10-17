@@ -128,7 +128,7 @@ function initSearch() {
             }
         }, 300); // Wait 300ms after user stops typing
     });
-
+``
     // Handle search on Enter key
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {

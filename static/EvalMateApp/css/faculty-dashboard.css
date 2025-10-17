@@ -7,19 +7,21 @@
 
 /* CSS Variables */
 :root {
-    /* Colors */
-    --color-primary: #2D3A52;
-    --color-secondary: #3A4A64;
-    --color-accent: #1E8449;
-    --color-accent-light: #27AE60;
-    --color-text-primary: #2C3E50;
-    --color-text-secondary: #7F8C8D;
-    --color-text-light: #BDC3C7;
+    /* Colors - New Theme */
+    --color-primary: #37353E;
+    --color-secondary: #44444E;
+    --color-accent: #715A5A;
+    --color-accent-light: #8A7070;
+    --color-text-primary: #37353E;
+    --color-text-secondary: #44444E;
+    --color-text-light: #715A5A;
     --color-background: #F8F9FA;
     --color-white: #FFFFFF;
-    --color-border: #E8EAED;
+    --color-border: #D3DAD9;
     --color-hover: #F5F6F7;
-    --color-dark: #3A424F;
+    --color-dark: #37353E;
+    --color-light-bg: #D3DAD9;
+    --color-muted: #715A5A;
     
     /* Spacing */
     --spacing-xs: 0.5rem;
@@ -73,14 +75,15 @@ body {
     background-color: var(--color-background);
     color: var(--color-text-primary);
     line-height: 1.6;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 /* Dashboard Layout */
 .dashboard {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
     position: relative;
+    overflow: hidden;
 }
 
 /* ==========================================================================
@@ -274,9 +277,10 @@ body {
     flex: 1;
     margin-left: var(--sidebar-width);
     transition: margin-left var(--transition-base);
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .sidebar.collapsed ~ .main-content {

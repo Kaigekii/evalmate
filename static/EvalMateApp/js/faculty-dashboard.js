@@ -100,7 +100,6 @@ function initSidebar() {
             // Close mobile sidebar after navigation
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('active');
-                }
             }
         });
     });

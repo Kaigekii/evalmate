@@ -73,23 +73,32 @@ WSGI_APPLICATION = 'EvalMate.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Use SQLite for local development
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.quifctsbspsveatadpln',
-        'PASSWORD': 'm0CBnUSNt9yF0oZj',
-        'HOST': 'aws-1-us-east-2.pooler.supabase.com',
-        'PORT': '5432',
-        'OPTIONS': {
-            'sslmode': 'disable',
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR.parent / 'db.sqlite3',
     }
 }
+
+# Uncomment below to use PostgreSQL/Supabase
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'postgres',
+#         'USER': 'postgres.quifctsbspsveatadpln',
+#         'PASSWORD': 'm0CBnUSNt9yF0oZj',
+#         'HOST': 'aws-1-us-east-2.pooler.supabase.com',
+#         'PORT': '5432',
+#         'OPTIONS': {
+#             'sslmode': 'require',
+#             'keepalives': 1,
+#             'keepalives_idle': 30,
+#             'keepalives_interval': 10,
+#             'keepalives_count': 5,
+#         },
+#     }
+# }
 
 
 # Password validation

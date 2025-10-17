@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from .forms import UserRegisterForm, ProfileForm
 
 def home_view(request):
@@ -113,7 +114,7 @@ def student_dashboard_view(request):
     return render(request, 'EvalMateApp/student-overview.html', context)
 
 def faculty_dashboard_view(request):
-    """Faculty dashboard view (placeholder - you'll need to create the template)"""
+    """Faculty dashboard view"""
     if not request.user.is_authenticated:
         return redirect('login')
     
@@ -128,7 +129,28 @@ def faculty_dashboard_view(request):
     
     context = {
         'user': request.user,
-        'profile': profile
+        'profile': profile,
     }
-    # TODO: Create faculty-dashboard.html template
     return render(request, 'EvalMateApp/faculty-dashboard.html', context)
+
+@login_required
+def form_builder_view(request):
+    """Form builder view for faculty members"""
+    messages.info(request, 'Accessing form builder view')  # Debug message
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            messages.error(request, 'Access denied. Faculty only.')
+            return redirect('home')
+        messages.success(request, 'Faculty access verified')  # Debug message
+    except Exception as e:
+        messages.error(request, f'Profile not found: {str(e)}')
+        return redirect('login')
+    
+    context = {
+        'user': request.user,
+        'profile': profile,
+    }
+    messages.info(request, 'Rendering form builder template')  # Debug message
+    return render(request, 'EvalMateApp/form-builder.html', context)

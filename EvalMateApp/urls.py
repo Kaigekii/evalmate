@@ -12,4 +12,5 @@ urlpatterns = [
     
     # Faculty Dashboard Routes
     path('dashboard/faculty/', views.faculty_dashboard_view, name='faculty_dashboard'),
+    path('dashboard/faculty/form-builder/', views.form_builder_view, name='form_builder'),
 ]

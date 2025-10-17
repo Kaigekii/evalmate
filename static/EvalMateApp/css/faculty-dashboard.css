@@ -127,6 +127,15 @@ body {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+    position: relative;
+}
+
+.sidebar__logo:hover {
+    background-color: var(--color-hover);
 }
 
 .logo__square {
@@ -142,12 +151,27 @@ body {
     font-weight: 600;
     color: var(--color-text-primary);
     white-space: nowrap;
-    transition: opacity var(--transition-fast);
+    transition: all var(--transition-fast);
+}
+
+.expand-icon {
+    display: none;
+    position: absolute;
+    right: var(--spacing-sm);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+}
+
+.sidebar.collapsed .expand-icon {
+    display: inline-block;
+}
+
+.sidebar.collapsed .logo__text {
+    display: none;
 }
 
 .sidebar__toggle {
-    background: none;
-    border: none;
+    display: none;
     color: var(--color-text-secondary);
     cursor: pointer;
     padding: var(--spacing-xs);

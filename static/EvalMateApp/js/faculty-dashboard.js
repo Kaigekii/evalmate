@@ -9,7 +9,33 @@ document.addEventListener('DOMContentLoaded', () => {
     initSearch();
     initQuickActions();
     initRecentActivities();
+    initNavigation();
 });
+
+/**
+ * Initialize navigation functionality
+ */
+function initNavigation() {
+    // Get all sidebar links
+    const sidebarLinks = document.querySelectorAll('.sidebar__link');
+    
+    sidebarLinks.forEach(link => {
+        // Skip if it's a regular URL (not hash)
+        if (!link.getAttribute('href').startsWith('#')) {
+            return; // Allow regular URLs to work normally
+        }
+        
+        // For hash URLs, handle them specially
+        link.addEventListener('click', (e) => {
+            if (link.getAttribute('href').startsWith('#')) {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                // Handle navigation for hash links
+                console.log('Navigation to:', targetId);
+            }
+        });
+    });
+}
 
 /**
  * Sidebar Toggle Functionality
@@ -21,7 +47,7 @@ function initSidebar() {
 
     if (!sidebar || !sidebarToggle) return;
 
-    // Toggle sidebar on button click
+    // Toggle sidebar on logo click
     sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
         
@@ -55,8 +81,10 @@ function initSidebar() {
     const navLinks = document.querySelectorAll('.sidebar__link');
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
-            // Don't prevent default for logout link
-            if (!link.classList.contains('sidebar__link--signout')) {
+            const href = link.getAttribute('href');
+            
+            // Only prevent default for hash links
+            if (href.startsWith('#') && !link.classList.contains('sidebar__link--signout')) {
                 e.preventDefault();
                 
                 // Remove active class from all links
@@ -65,13 +93,13 @@ function initSidebar() {
                 // Add active class to clicked link
                 link.classList.add('sidebar__link--active');
                 
-                // Handle navigation (placeholder for future implementation)
-                const href = link.getAttribute('href');
+                // Handle navigation for hash links
                 console.log('Navigate to:', href);
-                
-                // Close mobile sidebar after navigation
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('active');
+            }
+            
+            // Close mobile sidebar after navigation
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
                 }
             }
         });

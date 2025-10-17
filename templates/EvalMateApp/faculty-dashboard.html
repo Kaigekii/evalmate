@@ -14,13 +14,12 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar__header">
-                <div class="sidebar__logo">
+                <div class="sidebar__logo" id="sidebarToggle">
                     <div class="logo__square"></div>
                     <span class="logo__text">EvalMate</span>
+                    <!-- This icon shows only when sidebar is collapsed -->
+                    <i class="fas fa-expand expand-icon"></i>
                 </div>
-                <button class="sidebar__toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
-                    <i class="fas fa-bars"></i>
-                </button>
             </div>
 
             <!-- Dashboard Section -->
@@ -42,7 +41,7 @@
             <div class="sidebar__section">
                 <h3 class="sidebar__section-title">MANAGEMENT</h3>
                 <nav class="sidebar__nav">
-                    <a href="#form-builder" class="sidebar__link">
+                    <a href="{% url 'form_builder' %}" class="sidebar__link">
                         <i class="far fa-file-alt"></i>
                         <span>Form Builder</span>
                     </a>
@@ -118,7 +117,7 @@
 
                     <div class="actions-grid">
                         <!-- Create New Evaluation Card -->
-                        <div class="action-card action-card--dark">
+                        <a href="{% url 'form_builder' %}" class="action-card action-card--dark" style="text-decoration: none;">
                             <div class="action-card__icon action-card__icon--dark">
                                 <i class="far fa-file-alt"></i>
                             </div>
@@ -126,10 +125,10 @@
                                 <h3 class="action-card__title">Create New Evaluation</h3>
                                 <p class="action-card__description">Design and publish evaluation forms for your students</p>
                             </div>
-                            <button class="action-card__button">
+                            <div class="action-card__button">
                                 <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
+                            </div>
+                        </a>
 
                         <!-- View Reports Card -->
                         <div class="action-card action-card--green">

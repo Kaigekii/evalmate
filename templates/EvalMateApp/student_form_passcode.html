@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Enter Passcode - {{ form.title }}</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .form-passcode-wrap {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            animation: scaleIn 0.4s ease-out;
+        }
+        .form-passcode-wrap h1 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--color-primary);
+            margin-bottom: 1rem;
+        }
+        .form-passcode-wrap p {
+            color: var(--color-text-secondary);
+            margin-bottom: 2rem;
+        }
+        .alert {
+            background: #fee;
+            color: #c33;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-accent);
+        }
+        label {
+            font-weight: 500;
+            color: var(--color-text);
+        }
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        .btn-group .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-passcode-wrap">
+        <h1><i class="fas fa-lock"></i> {{ form.title }}</h1>
+        <p>{{ form.description }}</p>
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="alert"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+        <form method="post" action="{% url 'student_form_access' form.id %}">
+            {% csrf_token %}
+            <label for="passcode"><i class="fas fa-key"></i> This form requires a passcode. Enter passcode to continue:</label>
+            <input type="password" name="passcode" id="passcode" class="form-input" placeholder="Enter 6-digit passcode" required />
+            <div class="btn-group">
+                <button type="submit" class="btn btn--primary"><i class="fas fa-check"></i> Enter</button>
+                <a href="{% url 'student_dashboard' %}" class="btn btn--secondary"><i class="fas fa-times"></i> Cancel</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

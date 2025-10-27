@@ -526,9 +526,69 @@ function handleProfilePictureChange(event) {
 // ==================== Search ====================
 
 function handleSearch(event) {
-    const query = event.target.value.toLowerCase();
-    console.log('Searching for:', query);
-    // TODO: Implement search functionality
+    const query = event.target.value.trim();
+    const resultsContainerId = 'searchResultsContainer';
+    let container = document.getElementById(resultsContainerId);
+
+    if (!container) {
+        container = document.createElement('div');
+        container.id = resultsContainerId;
+        container.style.position = 'absolute';
+        container.style.zIndex = 1000;
+        container.style.background = '#fff';
+        container.style.border = '1px solid #e6e6e6';
+        container.style.width = '360px';
+        container.style.maxHeight = '300px';
+        container.style.overflow = 'auto';
+        container.style.boxShadow = '0 6px 20px rgba(0,0,0,0.08)';
+        const searchInput = document.getElementById('searchInput');
+        searchInput.parentNode.appendChild(container);
+    }
+
+    if (query.length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        return;
+    }
+
+    // Fetch search results from server
+    fetch(`/forms/search/?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            container.innerHTML = '';
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div style="padding:12px;">No forms found.</div>';
+                container.style.display = 'block';
+                return;
+            }
+
+            data.results.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                item.style.padding = '10px';
+                item.style.borderBottom = '1px solid #f0f0f0';
+                item.style.cursor = 'pointer';
+                item.innerHTML = `<strong>${escapeHtml(f.title)}</strong><div class="muted">Course: ${escapeHtml(f.course_id)}</div>`;
+                item.addEventListener('click', () => {
+                    // open form page
+                    window.location.href = `/forms/${f.id}/`;
+                });
+                container.appendChild(item);
+            });
+            container.style.display = 'block';
+        })
+        .catch(err => {
+            console.error('Search error', err);
+        });
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/\"/g, "&quot;")
+         .replace(/'/g, "&#039;");
 }
 
 // ==================== Global Helper ====================

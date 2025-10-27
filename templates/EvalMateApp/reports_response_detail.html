@@ -1,0 +1,25 @@
+{% extends 'EvalMateApp/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Response Detail - {{ form.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="response-detail-container">
+    <a href="{% url 'faculty_form_responses' form.id %}"><i class="fas fa-arrow-left"></i> Back to Responses</a>
+    <h1><i class="far fa-user-circle"></i> Response by {{ response.submitted_by.first_name }} {{ response.submitted_by.last_name }}</h1>
+    <p class="muted"><i class="far fa-clock"></i> Submitted at {{ response.submitted_at|date:"F d, Y g:i A" }}</p>
+
+    <div class="answers-list">
+        {% for a in answers %}
+        <div class="answer-card">
+            <div class="question"><i class="far fa-question-circle"></i> {{ a.question }}</div>
+            <div class="answer">{{ a.answer|default:"<em>(No answer provided)</em>" }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,3 +1,24 @@
 from django.contrib import admin
+from .models import Profile, FormTemplate, FormResponse, ResponseAnswer
 
-# Register your models here.
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+	list_display = ('user', 'account_type', 'institution', 'department')
+
+
+@admin.register(FormTemplate)
+class FormTemplateAdmin(admin.ModelAdmin):
+	list_display = ('title', 'course_id', 'created_by', 'created_at', 'privacy')
+	search_fields = ('title', 'course_id', 'institution')
+
+
+@admin.register(FormResponse)
+class FormResponseAdmin(admin.ModelAdmin):
+	list_display = ('form', 'submitted_by', 'submitted_at', 'is_read')
+	list_filter = ('is_read',)
+
+
+@admin.register(ResponseAnswer)
+class ResponseAnswerAdmin(admin.ModelAdmin):
+	list_display = ('response', 'question')

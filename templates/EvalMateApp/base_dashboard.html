@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EvalMate - Faculty Dashboard{% endblock %}</title>
+    {% load static %}
+    
+    <!-- Common Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Base Dashboard CSS -->
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}">
+    
+    <!-- Page-specific CSS -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="dashboard">
+        <!-- Sidebar - Global and Persistent -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar__header">
+                <div class="sidebar__logo" id="sidebarToggle">
+                    <div class="logo__square"></div>
+                    <span class="logo__text">EvalMate</span>
+                    <i class="fas fa-expand expand-icon"></i>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">DASHBOARD</h3>
+                <nav class="sidebar__nav">
+                    <a href="{% url 'faculty_dashboard' %}" class="sidebar__link {% if request.resolver_match.url_name == 'faculty_dashboard' %}sidebar__link--active{% endif %}">
+                        <i class="fas fa-th-large"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a href="/dashboard/faculty/analytics/" class="sidebar__link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Management Section -->
+            <div class="sidebar__section">
+                <h3 class="sidebar__section-title">MANAGEMENT</h3>
+                <nav class="sidebar__nav">
+                    <a href="{% url 'form_builder' %}" class="sidebar__link {% if request.resolver_match.url_name == 'form_builder' %}sidebar__link--active{% endif %}">
+                        <i class="fas fa-edit"></i>
+                        <span>Form Builder</span>
+                    </a>
+                    <a href="/dashboard/faculty/reports/" class="sidebar__link">
+                        <i class="far fa-file-alt"></i>
+                        <span>Reports</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Account Section -->
+            <div class="sidebar__section sidebar__section--bottom">
+                <nav class="sidebar__nav">
+                    <a href="{% url 'logout' %}" class="sidebar__link sidebar__link--signout" id="signOutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sign Out</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content Area - This will change per page -->
+        <main class="main-content">
+            {% block content %}
+            <!-- Page-specific content goes here -->
+            {% endblock %}
+        </main>
+    </div>
+
+    <!-- Base Scripts -->
+    <script src="{% static 'EvalMateApp/js/spa-router.js' %}"></script>
+    
+    <!-- Page-specific Scripts -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

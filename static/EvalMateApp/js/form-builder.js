@@ -887,6 +887,24 @@ class FormBuilder {
     }
 
     async publishForm() {
+        // Validate form before publishing
+        if (!this.formData.title || this.formData.title.trim() === '') {
+            alert('Please add a form title before publishing.');
+            return;
+        }
+
+        if (this.formData.sections.length === 0) {
+            alert('Please add at least one section with questions before publishing.');
+            return;
+        }
+
+        // Check if any section has questions
+        const hasQuestions = this.formData.sections.some(s => s.questions && s.questions.length > 0);
+        if (!hasQuestions) {
+            alert('Please add at least one question to your form before publishing.');
+            return;
+        }
+
         try {
             const response = await fetch('/api/publish-form', {
                 method: 'POST',
@@ -898,14 +916,21 @@ class FormBuilder {
             });
 
             if (response.ok) {
-                alert('Form published successfully!');
+                const data = await response.json();
                 localStorage.removeItem(`form_draft_${this.formData.id}`);
+                
+                // Show success message
+                alert('✅ Form published successfully! Redirecting to Reports...');
+                
+                // Redirect to reports page
+                window.location.href = '/dashboard/faculty/reports/';
             } else {
-                throw new Error('Failed to publish form');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to publish form');
             }
         } catch (error) {
             console.error('Error publishing form:', error);
-            alert('Failed to publish form. Please try again.');
+            alert('❌ Failed to publish form. Please try again.\n\nError: ' + error.message);
         }
     }
 

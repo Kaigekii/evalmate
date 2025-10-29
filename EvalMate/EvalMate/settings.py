@@ -11,21 +11,26 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Initialize environment variables
+env = environ.Env()
+environ.Env.read_env(BASE_DIR.parent / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o'
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 
 # Application definition
@@ -42,6 +47,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,17 +79,16 @@ WSGI_APPLICATION = 'EvalMate.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# PostgreSQL/Supabase Database - ACTIVE
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.quifctsbspsveatadpln',
-        'PASSWORD': 'm0CBnUSNt9yF0oZj',
-        'HOST': 'aws-1-us-east-2.pooler.supabase.com',
-        'PORT': '5432',
+        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': env('DATABASE_NAME', default='postgres'),
+        'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
+        'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
+        'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
+        'PORT': env('DATABASE_PORT', default='5432'),
         'OPTIONS': {
-            'sslmode': 'require',
+            'sslmode': env('DATABASE_SSLMODE', default='require'),
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
@@ -140,6 +145,10 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     str(BASE_DIR.parent / 'static'),
 ]
+
+# Static files storage for production
+STATIC_ROOT = BASE_DIR.parent / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

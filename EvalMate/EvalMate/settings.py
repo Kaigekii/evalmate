@@ -56,7 +56,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'EvalMate.urls'
+ROOT_URLCONF = 'EvalMate.EvalMate.urls'
 
 TEMPLATES = [
     {
@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'EvalMate.wsgi.application'
+WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
 
 
 # Database

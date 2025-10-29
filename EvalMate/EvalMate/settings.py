@@ -89,10 +89,6 @@ DATABASES = {
         'PORT': env('DATABASE_PORT', default='5432'),
         'OPTIONS': {
             'sslmode': env('DATABASE_SSLMODE', default='require'),
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
         },
     }
 }

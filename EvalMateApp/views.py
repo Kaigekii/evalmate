@@ -329,44 +329,76 @@ def student_form_submit(request, form_id):
 @login_required
 def api_publish_form(request):
     # Accept JSON payload from form-builder and save as FormTemplate
-    profile = request.user.profile
+    try:
+        profile = request.user.profile
+    except Exception as e:
+        return JsonResponse({'error': f'Profile not found: {str(e)}'}, status=403)
+    
     if profile.account_type != 'faculty':
-        return JsonResponse({'error': 'Access denied'}, status=403)
+        return JsonResponse({'error': 'Access denied - Faculty only'}, status=403)
 
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=400)
 
     try:
         payload = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Invalid JSON: {str(e)}'}, status=400)
 
-    title = payload.get('title') or 'Untitled Form'
-    description = payload.get('description', '')
-    settings = payload.get('settings', {})
-    course_id = settings.get('courseId', '')
-    institution = profile.institution
-    accessibility = settings.get('accessibility', 'public')
-    passcode = settings.get('passcode') if settings.get('requirePasscode') else ''
+    # Validate required fields
+    title = payload.get('title', '').strip()
+    if not title:
+        return JsonResponse({'error': 'Form title is required'}, status=400)
+    
+    sections = payload.get('sections', [])
+    if not sections or len(sections) == 0:
+        return JsonResponse({'error': 'At least one section is required'}, status=400)
+    
+    # Check if there are any questions
+    has_questions = any(section.get('questions') and len(section.get('questions', [])) > 0 for section in sections)
+    if not has_questions:
+        return JsonResponse({'error': 'At least one question is required'}, status=400)
 
-    # Map form builder values to model values
-    privacy_mapping = {
-        'public': 'institution',
-        'department': 'institution_course',
-        'institution': 'institution',
-        'institution_course': 'institution_course'
-    }
-    privacy = privacy_mapping.get(accessibility, 'institution')
+    try:
+        description = payload.get('description', '')
+        settings = payload.get('settings', {})
+        course_id = settings.get('courseId', '')
+        institution = getattr(profile, 'institution', '') or ''
+        accessibility = settings.get('accessibility', 'public')
+        passcode = settings.get('passcode', '').strip() if settings.get('requirePasscode') else ''
 
-    form = FormTemplate.objects.create(
-        title=title,
-        description=description,
-        course_id=course_id,
-        institution=institution,
-        structure=payload,
-        created_by=profile,
-        privacy=privacy,
-        passcode=passcode or None,
-    )
+        # Validate passcode if required
+        if settings.get('requirePasscode'):
+            if not passcode:
+                return JsonResponse({'error': 'Passcode is required when "Require Passcode" is enabled'}, status=400)
+            if len(passcode) != 6 or not passcode.isdigit():
+                return JsonResponse({'error': 'Passcode must be exactly 6 digits'}, status=400)
 
-    return JsonResponse({'success': True, 'form_id': form.id})
+        # Map form builder values to model values
+        privacy_mapping = {
+            'public': 'institution',
+            'department': 'institution_course',
+            'institution': 'institution',
+            'institution_course': 'institution_course'
+        }
+        privacy = privacy_mapping.get(accessibility, 'institution')
+
+        form = FormTemplate.objects.create(
+            title=title,
+            description=description,
+            course_id=course_id,
+            institution=institution,
+            structure=payload,
+            created_by=profile,
+            privacy=privacy,
+            passcode=passcode or None,
+        )
+
+        return JsonResponse({'success': True, 'form_id': form.id})
+    
+    except Exception as e:
+        # Log the error for debugging
+        import traceback
+        print(f"Error creating form: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': f'Failed to create form: {str(e)}'}, status=500)

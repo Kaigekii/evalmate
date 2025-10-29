@@ -906,6 +906,9 @@ class FormBuilder {
         }
 
         try {
+            console.log('Publishing form with data:', this.formData);
+            console.log('CSRF Token:', this.getCsrfToken());
+            
             const response = await fetch('/api/publish-form', {
                 method: 'POST',
                 headers: {
@@ -915,8 +918,15 @@ class FormBuilder {
                 body: JSON.stringify(this.formData)
             });
 
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+
+            // Try to parse the response
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
+
             if (response.ok) {
-                const data = await response.json();
+                const data = JSON.parse(responseText);
                 localStorage.removeItem(`form_draft_${this.formData.id}`);
                 
                 // Show success message
@@ -925,11 +935,18 @@ class FormBuilder {
                 // Redirect to reports page
                 window.location.href = '/dashboard/faculty/reports/';
             } else {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to publish form');
+                let errorMessage = 'Failed to publish form';
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = responseText || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error('Error publishing form:', error);
+            console.error('Full error details:', error);
             alert('❌ Failed to publish form. Please try again.\n\nError: ' + error.message);
         }
     }

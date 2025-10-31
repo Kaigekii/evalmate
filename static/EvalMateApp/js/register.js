@@ -353,6 +353,8 @@ function validatePasswordStrength() {
 
 // Enhanced registration validation
 function handleRegister(event) {
+    event.preventDefault(); // Always prevent default to handle with AJAX
+    
     const formData = {
         accountType: document.getElementById('accountType').value,
         firstName: document.getElementById('firstName').value.trim(),
@@ -373,14 +375,294 @@ function handleRegister(event) {
     // Client-side validation
     const validationError = validateRegistrationForm(formData);
     if (validationError) {
-        event.preventDefault(); // Only prevent if validation fails
         showMessage('errorMessage', validationError, true);
         return false;
     }
     
-    // Allow form to submit naturally to Django backend
-    // The form will now POST to the server with all the correct values
-    return true;
+    // Submit via AJAX
+    const form = document.getElementById('registerForm');
+    const formDataObj = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    // Disable submit button
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Account...';
+    }
+    
+    fetch(form.action || window.location.href, {
+        method: 'POST',
+        body: formDataObj,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show verification modal
+            showVerificationModal(formData.email, data.user_id);
+        } else {
+            // Show error
+            showMessage('errorMessage', data.message || 'Registration failed. Please try again.', true);
+            // Re-enable submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Registration error:', error);
+        showMessage('errorMessage', 'An error occurred. Please try again.', true);
+        // Re-enable submit button
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+        }
+    });
+    
+    return false;
+}
+
+// Show verification modal
+function showVerificationModal(email, userId) {
+    const modal = document.getElementById('verificationModal');
+    const userEmailEl = document.getElementById('userEmail');
+    
+    if (modal && userEmailEl) {
+        userEmailEl.textContent = email;
+        modal.classList.add('show');
+        
+        // Store user ID in session for verification
+        sessionStorage.setItem('pending_verification_user_id', userId);
+        
+        // Focus first input
+        const firstInput = document.getElementById('code1');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 300);
+        }
+        
+        // Initialize code inputs
+        initCodeInputs();
+        
+        // Initialize resend timer
+        startResendTimer();
+    }
+}
+
+// Initialize code input behavior
+function initCodeInputs() {
+    const inputs = document.querySelectorAll('.code-input');
+    
+    inputs.forEach((input, index) => {
+        // Clear previous listeners
+        input.replaceWith(input.cloneNode(true));
+    });
+    
+    // Re-query after replacing
+    const newInputs = document.querySelectorAll('.code-input');
+    
+    newInputs.forEach((input, index) => {
+        input.addEventListener('input', function(e) {
+            // Remove error state
+            this.classList.remove('error');
+            
+            // Only allow numbers
+            this.value = this.value.replace(/[^0-9]/g, '');
+            
+            // Move to next input if digit entered
+            if (this.value.length === 1 && index < newInputs.length - 1) {
+                newInputs[index + 1].focus();
+            }
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            // Move to previous on backspace
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                newInputs[index - 1].focus();
+            }
+            
+            // Submit on Enter
+            if (e.key === 'Enter') {
+                document.getElementById('verifyCodeBtn').click();
+            }
+        });
+        
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
+            
+            if (pasteData.length === 6) {
+                newInputs.forEach((inp, i) => {
+                    inp.value = pasteData[i] || '';
+                });
+                newInputs[5].focus();
+            }
+        });
+    });
+    
+    // Verify button
+    const verifyBtn = document.getElementById('verifyCodeBtn');
+    if (verifyBtn) {
+        verifyBtn.onclick = verifyCode;
+    }
+    
+    // Resend button
+    const resendBtn = document.getElementById('resendCodeBtn');
+    if (resendBtn) {
+        resendBtn.onclick = resendCode;
+    }
+}
+
+// Verify code
+function verifyCode() {
+    const inputs = document.querySelectorAll('.code-input');
+    const code = Array.from(inputs).map(input => input.value).join('');
+    
+    const errorEl = document.getElementById('verificationError');
+    const successEl = document.getElementById('verificationSuccess');
+    
+    // Hide previous messages
+    errorEl.classList.remove('show');
+    successEl.classList.remove('show');
+    
+    // Validate code length
+    if (code.length !== 6) {
+        errorEl.textContent = 'Please enter all 6 digits';
+        errorEl.classList.add('show');
+        inputs.forEach(input => input.classList.add('error'));
+        return;
+    }
+    
+    // Disable button
+    const verifyBtn = document.getElementById('verifyCodeBtn');
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = 'Verifying...';
+    
+    // Submit verification
+    fetch('/verify-code/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `code=${code}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success
+            inputs.forEach(input => input.classList.add('success'));
+            successEl.textContent = '✓ Email verified successfully! Redirecting to your dashboard...';
+            successEl.classList.add('show');
+            
+            // Clear session
+            sessionStorage.removeItem('pending_verification_user_id');
+            
+            // Redirect to appropriate dashboard
+            setTimeout(() => {
+                window.location.href = data.redirect;
+            }, 1500);
+        } else {
+            // Show error
+            inputs.forEach(input => input.classList.add('error'));
+            errorEl.textContent = data.message || 'Invalid or expired code. Please try again.';
+            errorEl.classList.add('show');
+            
+            // Re-enable button
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify Code';
+            
+            // Clear inputs
+            inputs.forEach(input => {
+                input.value = '';
+                setTimeout(() => input.classList.remove('error'), 2000);
+            });
+            inputs[0].focus();
+        }
+    })
+    .catch(error => {
+        console.error('Verification error:', error);
+        errorEl.textContent = 'An error occurred. Please try again.';
+        errorEl.classList.add('show');
+        
+        // Re-enable button
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify Code';
+    });
+}
+
+// Resend code
+function resendCode() {
+    const resendBtn = document.getElementById('resendCodeBtn');
+    const errorEl = document.getElementById('verificationError');
+    const successEl = document.getElementById('verificationSuccess');
+    
+    // Hide previous messages
+    errorEl.classList.remove('show');
+    successEl.classList.remove('show');
+    
+    // Disable button
+    resendBtn.disabled = true;
+    
+    fetch('/resend-code/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: ''
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            successEl.textContent = '✓ Verification code resent! Check your email.';
+            successEl.classList.add('show');
+            
+            // Start timer
+            startResendTimer();
+        } else {
+            errorEl.textContent = data.message || 'Failed to resend code. Please try again.';
+            errorEl.classList.add('show');
+            resendBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Resend error:', error);
+        errorEl.textContent = 'An error occurred. Please try again.';
+        errorEl.classList.add('show');
+        resendBtn.disabled = false;
+    });
+}
+
+// Resend timer
+let resendTimerInterval = null;
+
+function startResendTimer() {
+    const resendBtn = document.getElementById('resendCodeBtn');
+    const timerEl = document.getElementById('resendTimer');
+    
+    let seconds = 60;
+    resendBtn.disabled = true;
+    
+    // Clear existing interval
+    if (resendTimerInterval) {
+        clearInterval(resendTimerInterval);
+    }
+    
+    resendTimerInterval = setInterval(() => {
+        seconds--;
+        timerEl.textContent = `Resend available in ${seconds}s`;
+        
+        if (seconds <= 0) {
+            clearInterval(resendTimerInterval);
+            resendTimerInterval = null;
+            timerEl.textContent = '';
+            resendBtn.disabled = false;
+        }
+    }, 1000);
 }
 
 // Initialize register page when DOM is ready
@@ -391,14 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initRegisterPage();
         
         // Add form submit handler
-        registerForm.addEventListener('submit', function(e) {
-            // handleRegister will decide whether to prevent default or allow submission
-            const shouldSubmit = handleRegister(e);
-            if (!shouldSubmit) {
-                e.preventDefault();
-            }
-            // If shouldSubmit is true, form will submit naturally to Django
-        });
+        registerForm.addEventListener('submit', handleRegister);
     }
 });
 

@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
+import random
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -11,9 +14,27 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=15, blank=True)
     institution = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
+    
+    # Email verification fields
+    email_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)  # 6-digit code
+    verification_code_created = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f'{self.user.username} Profile'
+    
+    def generate_verification_code(self):
+        """Generate a random 6-digit verification code"""
+        self.verification_code = str(random.randint(100000, 999999))
+        self.verification_code_created = timezone.now()
+        return self.verification_code
+    
+    def is_verification_code_valid(self):
+        """Check if verification code is still valid (15 minutes)"""
+        if not self.verification_code_created:
+            return False
+        expiry_time = self.verification_code_created + timedelta(minutes=15)
+        return timezone.now() < expiry_time
 
 
 class FormTemplate(models.Model):

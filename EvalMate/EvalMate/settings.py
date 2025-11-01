@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +31,8 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '/onrender.com'])
+CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
 
 
 # Application definition
@@ -80,19 +82,12 @@ WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': env('DATABASE_NAME', default='postgres'),
-        'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
-        'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
-        'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
-        'PORT': env('DATABASE_PORT', default='5432'),
-        'OPTIONS': {
-            'sslmode': env('DATABASE_SSLMODE', default='require'),
-            'connect_timeout': 10,
-        },
-        'CONN_MAX_AGE': 0,  # Disable connection pooling for Supabase
-    }
+    "default": dj_database_url.config(
+        default="sqlite:///db.sqlite3",
+        env="DATABASE_URL",
+        conn_max_age=600, # persistent connections
+        ssl_require=True # enforce SSL
+    )   
 }
 
 # SQLite for local development - DISABLED

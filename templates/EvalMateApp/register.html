@@ -27,7 +27,7 @@
                 <h3>Create Account</h3>
                 <p class="subtitle">Join EvalMate to get started with peer evaluations</p>
                 
-                <form method="post" id="registerForm" onsubmit="return false;">
+                <form method="post" id="registerForm">
                     {% csrf_token %}
                     <div class="account-type">
                         <label>Account Type</label>
@@ -157,51 +157,6 @@
                 {% endif %}
                 <div id="errorMessage" class="error-message"></div>
                 <div id="successMessage" class="success-message"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Email Verification Modal -->
-    <div id="verificationModal" class="verification-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i class="fas fa-envelope-circle-check"></i>
-                <h2>Verify Your Email</h2>
-                <p class="modal-subtitle">We've sent a verification code to</p>
-                <p class="user-email" id="userEmail"></p>
-            </div>
-            
-            <div class="modal-body">
-                <p class="instructions">Enter the 6-digit code to verify your account:</p>
-                
-                <div class="code-input-container">
-                    <input type="text" class="code-input" maxlength="1" id="code1" autocomplete="off">
-                    <input type="text" class="code-input" maxlength="1" id="code2" autocomplete="off">
-                    <input type="text" class="code-input" maxlength="1" id="code3" autocomplete="off">
-                    <input type="text" class="code-input" maxlength="1" id="code4" autocomplete="off">
-                    <input type="text" class="code-input" maxlength="1" id="code5" autocomplete="off">
-                    <input type="text" class="code-input" maxlength="1" id="code6" autocomplete="off">
-                </div>
-                
-                <div id="verificationError" class="verification-error"></div>
-                <div id="verificationSuccess" class="verification-success"></div>
-                
-                <button type="button" class="verify-btn" id="verifyCodeBtn">Verify Code</button>
-                
-                <div class="resend-section">
-                    <p>Didn't receive the code?</p>
-                    <button type="button" class="resend-btn" id="resendCodeBtn">
-                        <i class="fas fa-rotate"></i> Resend Code
-                    </button>
-                    <p class="timer" id="resendTimer"></p>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <p class="help-text">
-                    <i class="fas fa-info-circle"></i>
-                    Code expires in 15 minutes
-                </p>
             </div>
         </div>
     </div>

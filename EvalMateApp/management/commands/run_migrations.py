@@ -3,6 +3,7 @@ from django.core.management import call_command
 from django.db import connection
 import time
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -10,12 +11,17 @@ class Command(BaseCommand):
     help = 'Run migrations with retry logic for Supabase connections'
 
     def handle(self, *args, **options):
-        max_retries = 5
-        retry_delay = 10  # seconds
+        # Skip if not in production
+        if 'RENDER' not in os.environ:
+            self.stdout.write('Skipping migrations - not in production environment')
+            return
+
+        max_retries = 10  # Increased retries for reliable connection
+        retry_delay = 5  # seconds
 
         for attempt in range(max_retries):
             try:
-                self.stdout.write(f'Attempting to connect to database (attempt {attempt + 1}/{max_retries})...')
+                self.stdout.write(f'Attempting database connection (attempt {attempt + 1}/{max_retries})...')
 
                 # Test connection
                 with connection.cursor() as cursor:
@@ -26,7 +32,7 @@ class Command(BaseCommand):
 
                 # Run migrations
                 self.stdout.write('Running database migrations...')
-                call_command('migrate', verbosity=1)
+                call_command('migrate', verbosity=1, interactive=False)
                 self.stdout.write(self.style.SUCCESS('Migrations completed successfully'))
                 return
 
@@ -36,8 +42,7 @@ class Command(BaseCommand):
                 if attempt < max_retries - 1:
                     self.stdout.write(f'Waiting {retry_delay} seconds before retry...')
                     time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
+                    retry_delay = min(retry_delay * 1.5, 30)  # Gradual increase, max 30s
                 else:
-                    self.stdout.write(self.style.ERROR('All migration attempts failed. Application may not work correctly.'))
-                    # Don't raise exception - let app start anyway
-                    return
+                    self.stdout.write(self.style.ERROR('All database connection attempts failed. Deployment cannot continue.'))
+                    raise Exception('Database connection failed after all retries')

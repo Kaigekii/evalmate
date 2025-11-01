@@ -7,12 +7,6 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
     
-    # Email Verification Routes (Code-based)
-    path('email-verification-sent/', views.email_verification_sent_view, name='email_verification_sent'),
-    path('verify-code/', views.verify_code_view, name='verify_code'),  # AJAX endpoint
-    path('resend-code/', views.resend_code_view, name='resend_code'),  # AJAX endpoint
-    path('resend-verification/', views.resend_verification_view, name='resend_verification'),
-    
     # Student Dashboard Routes (SPA)
     path('dashboard/student/', views.student_dashboard_view, name='student_dashboard'),
     

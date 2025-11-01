@@ -26,13 +26,13 @@ environ.Env.read_env(BASE_DIR.parent / '.env')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o')
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'evalmate.onrender.com', '*.onrender.com'])
-CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['https://*.onrender.com'])
 
 
 # Application definition
@@ -57,6 +57,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Security settings for production
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=True)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=True)
+SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
+SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=True)
 
 ROOT_URLCONF = 'EvalMate.EvalMate.urls'
 
@@ -153,13 +161,13 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration
-EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@evalmate.onrender.com')
 
 # Site URL for email verification links
-SITE_URL = env('SITE_URL', default='http://127.0.0.1:8000')
+SITE_URL = env('SITE_URL', default='https://evalmate.onrender.com')

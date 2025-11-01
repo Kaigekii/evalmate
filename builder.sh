@@ -25,3 +25,6 @@ echo "Build completed successfully!"
 # python manage.py test
 
 echo "Ready for deployment."
+
+# Set Django settings module for gunicorn
+export DJANGO_SETTINGS_MODULE=EvalMate.EvalMate.settings

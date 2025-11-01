@@ -20,7 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Initialize environment variables
 env = environ.Env()
-environ.Env.read_env(BASE_DIR.parent / '.env')
+env_file = BASE_DIR.parent / '.env'
+environ.Env.read_env(env_file)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -82,11 +83,9 @@ WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default="sqlite:///db.sqlite3",
-        env="DATABASE_URL",
-        conn_max_age=600, # persistent connections
-        ssl_require=True # enforce SSL
+    "default": dj_database_url.parse(
+        env('DATABASE_URL', default='sqlite:///db.sqlite3'),
+        conn_max_age=600
     )   
 }
 

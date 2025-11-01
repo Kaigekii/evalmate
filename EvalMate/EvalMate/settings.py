@@ -98,6 +98,13 @@ DATABASES = {
     )
 }
 
+# Custom database configuration for Supabase
+if 'DATABASE_URL' in os.environ and 'supabase' in os.environ['DATABASE_URL'].lower():
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
+        'connect_timeout': 30,
+    }
+
 # SQLite for local development - DISABLED
 # DATABASES = {
 #     'default': {

@@ -9,9 +9,9 @@ echo "Starting Django deployment build..."
 echo "Installing Python dependencies..."
 pip install -r requirements.txt
 
-# Run database migrations
-echo "Running database migrations..."
-python manage.py migrate --run-syncdb || echo "Sync failed, trying regular migrate..." && python manage.py migrate || echo "Migration failed, continuing with build..." && exit 0
+# Skip database migrations during build for Supabase
+echo "Skipping database migrations during build for Supabase compatibility"
+echo "Migrations will be run automatically on application startup"
 
 # Collect static files
 echo "Collecting static files..."

@@ -9,29 +9,119 @@
 
 {% block content %}
 <div class="responses-container">
-    <a href="{% url 'faculty_reports' %}"><i class="fas fa-arrow-left"></i> Back to Reports</a>
-    <h1><i class="fas fa-clipboard-list"></i> {{ form.title }}</h1>
-    <p class="muted">
-        <i class="fas fa-graduation-cap"></i> Course: {{ form.course_id }} &middot; 
-        <i class="far fa-clock"></i> Created: {{ form.created_at|date:"M d, Y" }}
-    </p>
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="{% url 'faculty_reports' %}" class="breadcrumb__link">
+            <i class="fas fa-arrow-left"></i> 
+            Back to Reports
+        </a>
+    </div>
 
-    <div class="responses-list">
-        {% for r in responses %}
-        <div class="response-item">
-            <div class="response-meta">
-                <strong><i class="far fa-user"></i> {{ r.submitted_by.first_name }} {{ r.submitted_by.last_name }}</strong>
-                <span class="muted"><i class="far fa-clock"></i> {{ r.submitted_at|date:"M d, Y g:i A" }}</span>
+    <!-- Page Header - Reports Style -->
+    <div class="reports-hero">
+        <div class="reports-hero__content">
+            <div class="reports-hero__icon">
+                <i class="fas fa-clipboard-list"></i>
             </div>
-            <div class="response-actions">
-                <a href="{% url 'faculty_response_detail' form.id r.id %}" class="btn btn--outline">
-                    <i class="far fa-eye"></i> View Details
-                </a>
+            <div>
+                <h1 class="reports-hero__title">{{ form.title }}</h1>
+                <div class="responses-header__meta">
+                    <span class="meta-item" style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-graduation-cap"></i>
+                        {{ form.course_id|default:"No Course" }}
+                    </span>
+                    <span class="meta-item" style="color: rgba(255,255,255,0.9);">
+                        <i class="far fa-calendar"></i>
+                        Created {{ form.created_at|date:"M d, Y" }}
+                    </span>
+                </div>
             </div>
         </div>
-        {% empty %}
-        <p><i class="far fa-folder-open"></i> No responses yet for this form.</p>
+        <div class="reports-hero__stats">
+            <div class="hero-stat">
+                <div class="hero-stat__value">{{ total_responses }}</div>
+                <div class="hero-stat__label">Response{{ total_responses|pluralize }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Responses List -->
+    {% if grouped_responses %}
+    <div class="responses-list">
+        {% for group in grouped_responses %}
+        <div class="response-item {% if group.has_unread %}response-item--unread{% endif %}">
+            <!-- Student Header -->
+            <div style="display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; border-bottom: 2px solid #F3F4F6;">
+                <div class="response-item__avatar">
+                    <span>{{ group.student.first_name.0 }}{{ group.student.last_name.0 }}</span>
+                </div>
+                
+                <div class="response-item__content" style="flex: 1;">
+                    <div class="response-item__header">
+                        <h3 class="response-item__name">
+                            {{ group.student.first_name }} {{ group.student.last_name }}
+                        </h3>
+                        {% if group.has_unread %}
+                        <span class="response-item__unread-badge">
+                            <i class="fas fa-circle"></i> New
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="response-item__meta">
+                        <span class="meta-item">
+                            <i class="far fa-clock"></i>
+                            {{ group.submitted_at|date:"M d, Y" }} at {{ group.submitted_at|date:"g:i A" }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="fas fa-envelope"></i>
+                            {{ group.student.user.email }}
+                        </span>
+                        <span class="meta-item" style="padding: 0.375rem 0.75rem; background: linear-gradient(135deg, #715A5A, #8A7070); color: white; border-radius: 8px; font-weight: 600;">
+                            <i class="fas fa-users" style="color: white;"></i>
+                            {{ group.teammates|length }} Teammate{{ group.teammates|length|pluralize }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teammates List -->
+            <div style="padding: 1rem 1.5rem 1.5rem 1.5rem;">
+                <div style="display: grid; gap: 0.75rem;">
+                    {% for teammate in group.teammates %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: #F9FAFB; border-radius: 12px; border: 2px solid #F3F4F6; transition: all 0.2s ease;">
+                        <div style="display: flex; align-items: center; gap: 0.875rem;">
+                            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #715A5A, #8A7070); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white;">
+                                <i class="fas fa-user" style="font-size: 0.875rem;"></i>
+                            </div>
+                            <span style="font-weight: 600; color: #1F2937; font-size: 0.9375rem;">{{ teammate.name }}</span>
+                            {% if not teammate.is_read %}
+                            <span style="display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.625rem; background: #EF4444; color: white; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <i class="fas fa-circle" style="font-size: 0.4rem; animation: pulse 2s infinite;"></i> New
+                            </span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'faculty_response_detail' form.id teammate.response_id %}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.125rem; background: linear-gradient(135deg, #37353E, #44444E); color: white; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.875rem; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(55, 53, 62, 0.2);">
+                            <span>View</span>
+                            <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
         {% endfor %}
     </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="responses-empty">
+        <div class="responses-empty__icon">
+            <i class="far fa-inbox"></i>
+        </div>
+        <h3 class="responses-empty__title">No Responses Yet</h3>
+        <p class="responses-empty__text">
+            When students submit this evaluation form, their responses will appear here.
+        </p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

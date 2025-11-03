@@ -1,25 +1,361 @@
 {% extends 'EvalMateApp/base_dashboard.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}Response Detail - {{ form.title }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+<style>
+    .responses-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .response-item {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .response-number {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: #715a5a;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .response-content {
+        flex: 1;
+    }
+    
+    .response-question {
+        font-size: 1.1rem;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .required-mark {
+        color: #dc2626;
+        margin-left: 4px;
+    }
+    
+    .response-description {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        font-style: italic;
+    }
+    
+    .response-answer {
+        margin-top: 1rem;
+    }
+    
+    /* Rating */
+    .rating-display {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .rating-box {
+        flex: 1;
+        min-width: 90px;
+        padding: 1rem;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        text-align: center;
+    }
+    
+    .rating-box-selected {
+        background: linear-gradient(135deg, #715a5a, #8b6f6f);
+        color: white;
+        border-color: #715a5a;
+        box-shadow: 0 4px 12px rgba(113, 90, 90, 0.3);
+        transform: scale(1.05);
+    }
+    
+    .rating-num {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .rating-text {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    /* Text */
+    .text-answer {
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        border-left: 4px solid #715a5a;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+    
+    /* Multiple/Checkbox */
+    .multiple-display, .checkbox-display {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .option-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+    }
+    
+    .option-selected {
+        background: linear-gradient(135deg, #715a5a, #8b6f6f);
+        color: white;
+        border-color: #715a5a;
+        font-weight: 600;
+    }
+    
+    .radio-circle, .check-square {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #d1d5db;
+        background: white;
+        flex-shrink: 0;
+    }
+    
+    .radio-circle {
+        border-radius: 50%;
+    }
+    
+    .check-square {
+        border-radius: 4px;
+    }
+    
+    .option-selected .radio-circle::after {
+        content: '';
+        display: block;
+        width: 10px;
+        height: 10px;
+        background: white;
+        border-radius: 50%;
+        margin: 3px;
+    }
+    
+    .option-selected .check-square::after {
+        content: '✓';
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Slider */
+    .slider-display {
+        padding: 1rem 0;
+    }
+    
+    .slider-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #6b7280;
+    }
+    
+    .slider-bar {
+        position: relative;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    .slider-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        background: linear-gradient(90deg, #715a5a, #8b6f6f);
+        border-radius: 4px;
+    }
+    
+    .slider-handle {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        background: white;
+        border: 3px solid #715a5a;
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    
+    .slider-val {
+        text-align: center;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #715a5a;
+    }
+    
+    .simple-answer {
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="response-detail-container">
-    <a href="{% url 'faculty_form_responses' form.id %}"><i class="fas fa-arrow-left"></i> Back to Responses</a>
-    <h1><i class="far fa-user-circle"></i> Response by {{ response.submitted_by.first_name }} {{ response.submitted_by.last_name }}</h1>
-    <p class="muted"><i class="far fa-clock"></i> Submitted at {{ response.submitted_at|date:"F d, Y g:i A" }}</p>
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="{% url 'faculty_form_responses' form.id %}" class="breadcrumb__link">
+            <i class="fas fa-arrow-left"></i> 
+            Back to Responses
+        </a>
+    </div>
 
-    <div class="answers-list">
-        {% for a in answers %}
-        <div class="answer-card">
-            <div class="question"><i class="far fa-question-circle"></i> {{ a.question }}</div>
-            <div class="answer">{{ a.answer|default:"<em>(No answer provided)</em>" }}</div>
+    <!-- Response Header -->
+    <div class="response-detail-header">
+        <div class="response-detail-header__avatar">
+            <span>{{ response.submitted_by.first_name.0 }}{{ response.submitted_by.last_name.0 }}</span>
         </div>
-        {% endfor %}
+        <div class="response-detail-header__content">
+            <h1 class="response-detail-header__title">
+                {{ response.submitted_by.first_name }} {{ response.submitted_by.last_name }}'s Evaluation
+            </h1>
+            <div class="response-detail-header__meta">
+                <span class="meta-item">
+                    <i class="fas fa-file-alt"></i>
+                    {{ form.title }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-user-circle"></i>
+                    Teammate: <strong>{{ response.teammate_name }}</strong>
+                </span>
+                <span class="meta-item">
+                    <i class="far fa-clock"></i>
+                    Submitted {{ response.submitted_at|date:"F d, Y" }} at {{ response.submitted_at|date:"g:i A" }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-envelope"></i>
+                    {{ response.submitted_by.user.email }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Answers Section -->
+    <div class="answers-section">
+        <div class="answers-section__header">
+            <h2 class="answers-section__title">
+                <i class="fas fa-clipboard-check"></i>
+                Evaluation Responses
+            </h2>
+            <span class="answers-section__count">
+                {{ answers|length }} Answer{{ answers|length|pluralize }}
+            </span>
+        </div>
+
+        <div class="responses-container">
+            {% for answer in answers %}
+            <div class="response-item">
+                <div class="response-number">{{ forloop.counter }}</div>
+                <div class="response-content">
+                    <div class="response-question">
+                        <strong>{{ answer.question_data.text|default:"Question" }}</strong>
+                        {% if answer.question_data.required %}<span class="required-mark">*</span>{% endif %}
+                    </div>
+                    {% if answer.question_data.description %}
+                        <div class="response-description">{{ answer.question_data.description }}</div>
+                    {% endif %}
+                    
+                    <div class="response-answer">
+                        {% if answer.question_data.type == 'rating' %}
+                            <div class="rating-display">
+                                {% for i in "12345" %}
+                                    <div class="rating-box {% if i == answer.answer|stringformat:'s' %}rating-box-selected{% endif %}">
+                                        <div class="rating-num">{{ i }}</div>
+                                        <div class="rating-text">
+                                            {% if i == '1' %}Poor
+                                            {% elif i == '2' %}Below Average
+                                            {% elif i == '3' %}Average
+                                            {% elif i == '4' %}Good
+                                            {% elif i == '5' %}Excellent
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif answer.question_data.type == 'text' %}
+                            <div class="text-answer">{{ answer.answer }}</div>
+                        
+                        {% elif answer.question_data.type == 'multiple' %}
+                            <div class="multiple-display">
+                                {% for option in answer.question_data.options.options %}
+                                    <div class="option-box {% if option == answer.answer %}option-selected{% endif %}">
+                                        <span class="radio-circle"></span>
+                                        <span>{{ option }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif answer.question_data.type == 'checkbox' %}
+                            <div class="checkbox-display">
+                                {% for option in answer.question_data.options.options %}
+                                    <div class="option-box {% if option in answer.answer %}option-selected{% endif %}">
+                                        <span class="check-square"></span>
+                                        <span>{{ option }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif answer.question_data.type == 'slider' %}
+                            <div class="slider-display">
+                                <div class="slider-labels">
+                                    <span>{{ answer.question_data.options.labels.0 }}</span>
+                                    <span>{{ answer.question_data.options.labels.1 }}</span>
+                                </div>
+                                <div class="slider-bar">
+                                    {% widthratio answer.answer answer.question_data.options.max 100 as percent %}
+                                    <div class="slider-fill" style="width: {{ percent }}%;"></div>
+                                    <div class="slider-handle" style="left: {{ percent }}%;"></div>
+                                </div>
+                                <div class="slider-val">{{ answer.answer }}</div>
+                            </div>
+                        
+                        {% else %}
+                            <div class="simple-answer">{{ answer.answer }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endblock %}

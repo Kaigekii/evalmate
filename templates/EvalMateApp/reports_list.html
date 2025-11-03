@@ -9,37 +9,212 @@
 
 {% block content %}
 <div class="reports-container">
-    <h1><i class="fas fa-chart-bar"></i> Evaluation Reports</h1>
-    <p class="muted">View and analyze submitted peer evaluations from students</p>
+    <!-- Hero Header -->
+    <div class="reports-hero">
+        <div class="reports-hero__content">
+            <div class="reports-hero__icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h1 class="reports-hero__title">Evaluation Reports</h1>
+                <p class="reports-hero__subtitle">View and analyze submitted peer evaluations from your students</p>
+            </div>
+        </div>
+        <div class="reports-hero__stats">
+            <div class="hero-stat">
+                <div class="hero-stat__value">{{ forms_data|length }}</div>
+                <div class="hero-stat__label">Total Forms</div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Reports Grid -->
+    {% if forms_data %}
     <div class="reports-grid">
         {% for item in forms_data %}
-        <div class="report-card">
-            <h3><i class="fas fa-file-alt"></i> {{ item.form.title }}</h3>
-            <p class="muted"><i class="fas fa-graduation-cap"></i> Course: {{ item.form.course_id }}</p>
-            <div class="report-stats">
-                <div class="stat">
-                    <div class="stat-value">{{ item.total_submissions }}</div>
-                    <div class="stat-label"><i class="fas fa-clipboard-list"></i> Total Submissions</div>
+        <div class="report-card" data-form-id="{{ item.form.id }}" data-status="{% if item.form.privacy == 'private' %}draft{% else %}published{% endif %}">
+            <div class="report-card__header">
+                <div class="report-card__icon">
+                    <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="stat">
-                    <div class="stat-value">{{ item.todays_submissions }}</div>
-                    <div class="stat-label"><i class="far fa-calendar"></i> Today's Submissions</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">{{ item.unread_submissions }}</div>
-                    <div class="stat-label"><i class="fas fa-bell"></i> Unread</div>
+                <div class="report-card__badge report-card__badge--{{ item.form.privacy }}">
+                    {% if item.form.privacy == 'private' %}DRAFT{% else %}PUBLISHED{% endif %}
                 </div>
             </div>
-            <div class="report-actions">
-                <a href="{% url 'faculty_form_responses' item.form.id %}" class="btn btn--outline">
-                    <i class="far fa-eye"></i> View Responses
+            
+            <div class="report-card__content">
+                <h3 class="report-card__title">{{ item.form.title }}</h3>
+                <p class="report-card__course">
+                    <i class="fas fa-graduation-cap"></i> 
+                    {{ item.form.course_id|default:"No Course" }}
+                </p>
+                {% if item.form.due_date %}
+                <p class="report-card__due-date">
+                    <i class="far fa-calendar-alt"></i>
+                    Due: {{ item.form.due_date|date:"M d, Y g:i A" }}
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="report-card__stats">
+                <div class="report-stat">
+                    <div class="report-stat__icon report-stat__icon--blue">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="report-stat__content">
+                        <div class="report-stat__value">{{ item.total_submissions }}</div>
+                        <div class="report-stat__label">Total</div>
+                    </div>
+                </div>
+                
+                <div class="report-stat">
+                    <div class="report-stat__icon report-stat__icon--green">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="report-stat__content">
+                        <div class="report-stat__value">{{ item.todays_submissions }}</div>
+                        <div class="report-stat__label">Today</div>
+                    </div>
+                </div>
+                
+                <div class="report-stat">
+                    <div class="report-stat__icon report-stat__icon--orange">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="report-stat__content">
+                        <div class="report-stat__value">{{ item.unread_submissions }}</div>
+                        <div class="report-stat__label">Unread</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-card__footer">
+                <a href="{% url 'faculty_form_responses' item.form.id %}" class="btn-view-responses">
+                    <span>View All Responses</span>
+                    <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
-        {% empty %}
-        <p><i class="far fa-folder-open"></i> No forms found. Create a form first in Form Builder.</p>
         {% endfor %}
     </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="reports-empty">
+        <div class="reports-empty__icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <h3 class="reports-empty__title">No Reports Available</h3>
+        <p class="reports-empty__text">
+            Create your first evaluation form to start collecting responses and viewing reports.
+        </p>
+        <a href="{% url 'form_builder' %}" class="btn-create-form">
+            <i class="fas fa-plus"></i>
+            Create Your First Form
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+console.log('=== REPORTS PAGE: Real-time sync initialized ===');
+
+// Listen for form status changes from other tabs/pages using localStorage
+window.addEventListener('storage', function(e) {
+    console.log('Storage event detected:', e.key, e.newValue);
+    if (e.key === 'formStatusChanged') {
+        try {
+            const data = JSON.parse(e.newValue);
+            console.log('✅ Received form status change:', data);
+            updateReportCardStatus(data.formId, data.newStatus);
+        } catch (error) {
+            console.error('❌ Error parsing form status change:', error);
+        }
+    }
+});
+
+// Poll localStorage periodically to catch any missed updates
+setInterval(function() {
+    const lastChange = localStorage.getItem('formStatusChanged');
+    if (lastChange) {
+        try {
+            const data = JSON.parse(lastChange);
+            // Only apply if change is less than 2 seconds old and not already applied
+            if (data.timestamp && (Date.now() - data.timestamp) < 2000) {
+                const reportCard = document.querySelector(`.report-card[data-form-id="${data.formId}"]`);
+                if (reportCard && reportCard.dataset.status !== data.newStatus) {
+                    console.log('⏰ Polling detected status change:', data);
+                    updateReportCardStatus(data.formId, data.newStatus);
+                }
+            }
+        } catch (error) {
+            // Ignore parsing errors
+        }
+    }
+}, 500); // Check every 500ms
+
+// Also check localStorage on page load for any recent changes
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Reports page loaded, checking for recent changes...');
+    const lastChange = localStorage.getItem('formStatusChanged');
+    if (lastChange) {
+        try {
+            const data = JSON.parse(lastChange);
+            // Only apply if change is less than 5 seconds old
+            if (data.timestamp && (Date.now() - data.timestamp) < 5000) {
+                console.log('📋 Applying recent form status change on load:', data);
+                updateReportCardStatus(data.formId, data.newStatus);
+            }
+        } catch (error) {
+            console.error('Error checking form status change:', error);
+        }
+    }
+});
+
+function updateReportCardStatus(formId, newStatus) {
+    console.log('🎯 updateReportCardStatus called with formId:', formId, 'newStatus:', newStatus);
+    
+    const reportCard = document.querySelector(`.report-card[data-form-id="${formId}"]`);
+    if (!reportCard) {
+        console.error('❌ Report card not found for form:', formId);
+        console.log('Available report cards:', document.querySelectorAll('.report-card'));
+        return;
+    }
+    
+    const oldStatus = reportCard.dataset.status;
+    console.log('📊 Report card found! Old status:', oldStatus, '→ New status:', newStatus);
+    
+    // Update data attribute
+    reportCard.dataset.status = newStatus;
+    
+    // Update badge
+    const badge = reportCard.querySelector('.report-card__badge');
+    if (badge) {
+        const privacy = newStatus === 'draft' ? 'private' : 'institution';
+        const badgeText = newStatus === 'draft' ? 'DRAFT' : 'PUBLISHED';
+        
+        // Force remove old classes first
+        badge.classList.remove('report-card__badge--private', 'report-card__badge--institution');
+        
+        // Add new class
+        badge.classList.add('report-card__badge', `report-card__badge--${privacy}`);
+        
+        // Update text content
+        badge.textContent = badgeText;
+        
+        // Force browser reflow to ensure immediate rendering
+        void badge.offsetHeight;
+        
+        console.log('Report card badge updated to:', badgeText, 'with class:', privacy);
+        
+        // Add animation effect
+        reportCard.style.animation = 'pulse 0.5s ease';
+        setTimeout(() => {
+            reportCard.style.animation = '';
+        }, 500);
+    }
+}
+</script>
+{% endblock %}
+

@@ -90,12 +90,6 @@
                         >
                     </div>
 
-                    <!-- Notifications -->
-                    <button class="topnav__notification" id="notificationBtn" aria-label="Notifications">
-                        <i class="far fa-bell"></i>
-                        <span class="notification__badge" id="notificationBadge">0</span>
-                    </button>
-
                     <!-- User Profile -->
                     <div class="topnav__user">
                         <div class="user__avatar">
@@ -165,30 +159,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Upcoming Deadlines Section -->
-                    <div class="deadlines-section">
-                        <div class="section-header">
-                            <h2 class="section-title">Upcoming Deadlines</h2>
-                            <p class="section-subtitle">Don't miss these important evaluation deadlines</p>
-                        </div>
-
-                        <div class="deadlines-container">
-                            <!-- Empty State -->
-                            <div class="empty-state" id="emptyDeadlines">
-                                <div class="empty-state__icon">
-                                    <i class="far fa-calendar-check"></i>
-                                </div>
-                                <h3 class="empty-state__title">No Upcoming Deadlines</h3>
-                                <p class="empty-state__text">You're all caught up! No pending evaluation deadlines at the moment.</p>
-                            </div>
-
-                            <!-- Deadlines List (will be populated by JS) -->
-                            <div class="deadlines-list" id="deadlinesList" style="display: none;">
-                                <!-- Deadline cards will be inserted here by JavaScript -->
-                            </div>
-                        </div>
-                    </div>
                 </section>
 
                 <!-- ==================== PENDING EVALUATIONS SECTION ==================== -->
@@ -209,13 +179,6 @@
                                 <span class="header-stat__value" id="dueToday">0</span>
                                 <span class="header-stat__label">DUE TODAY</span>
                             </div>
-                            <button class="btn-refresh" id="refreshBtn">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-
-                        <div class="page-header__meta">
-                            <span class="last-updated">Last updated: <span id="lastUpdated">12:02:29 AM</span></span>
                         </div>
                     </div>
 
@@ -234,9 +197,8 @@
                         <div class="controls__sort">
                             <label for="sortSelect" class="controls__label">Sort by:</label>
                             <select id="sortSelect" class="sort-select">
-                                <option value="due-date">Due Date</option>
+                                <option value="due_date">Due Date</option>
                                 <option value="title">Title</option>
-                                <option value="status">Status</option>
                             </select>
                         </div>
                     </div>
@@ -551,6 +513,10 @@
     </div>
 
     <!-- Scripts -->
-    <script src="{% static 'EvalMateApp/js/student-overview.js' %}"></script>
+    <script src="{% static 'EvalMateApp/js/student-overview.js' %}?v={{ timestamp|default:'1' }}"></script>
+    <script>
+        // Force JavaScript cache bust
+        console.log('Student Overview JS loaded at:', new Date().toISOString());
+    </script>
 </body>
 </html>

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvalMate - Login</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Optimized Font Awesome - subset loading with defer -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'">
     {% load static %}
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/login.css' %}">
     
@@ -88,5 +89,28 @@
     <script src="{% static 'EvalMateApp/js/validation.js' %}"></script>
     <script src="{% static 'EvalMateApp/js/utils.js' %}"></script>
     <script src="{% static 'EvalMateApp/js/login.js' %}"></script>
+    
+    <!-- Prevent back button after logout -->
+    <script>
+        // Clear browser history and prevent back navigation
+        (function() {
+            if (window.history && window.history.pushState) {
+                // Replace current state to break history chain
+                window.history.pushState(null, null, window.location.href);
+                
+                // Prevent back button
+                window.addEventListener('popstate', function() {
+                    window.history.pushState(null, null, window.location.href);
+                });
+            }
+            
+            // Disable cache
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    window.location.reload();
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

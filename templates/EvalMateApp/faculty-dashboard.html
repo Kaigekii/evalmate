@@ -14,17 +14,6 @@
                 </div>
 
                 <div class="topnav__actions">
-                    <!-- Search Bar -->
-                    <div class="search-bar">
-                        <i class="fas fa-search search-bar__icon"></i>
-                        <input 
-                            type="text" 
-                            class="search-bar__input" 
-                            placeholder="Search evaluations, groups..."
-                            id="searchInput"
-                        >
-                    </div>
-
                     <!-- User Profile -->
                     <div class="topnav__user">
                         <div class="user__info">
@@ -40,11 +29,16 @@
 
             <!-- Page Content -->
             <div class="content">
-                <!-- Hero Section -->
-                <section class="hero">
-                    <div class="hero__content">
-                        <h1 class="hero__title">Faculty Dashboard</h1>
-                        <p class="hero__subtitle">Ready to continue your evaluation journey? Here's your personalized overview.</p>
+                <!-- Hero Section - Reports Style -->
+                <section class="reports-hero">
+                    <div class="reports-hero__content">
+                        <div class="reports-hero__icon">
+                            <i class="fas fa-th-large"></i>
+                        </div>
+                        <div>
+                            <h1 class="reports-hero__title">Faculty Dashboard</h1>
+                            <p class="reports-hero__subtitle">Ready to continue your evaluation journey? Here's your personalized overview.</p>
+                        </div>
                     </div>
                 </section>
 
@@ -72,7 +66,7 @@
                         </a>
 
                         <!-- View Reports Card -->
-                        <div class="action-card action-card--green">
+                        <a href="{% url 'faculty_reports' %}" class="action-card action-card--green" style="text-decoration: none;">
                             <div class="action-card__icon action-card__icon--green">
                                 <i class="fas fa-chart-bar"></i>
                             </div>
@@ -80,10 +74,10 @@
                                 <h3 class="action-card__title">View Reports</h3>
                                 <p class="action-card__description">Analyze submission reports and performance data</p>
                             </div>
-                            <button class="action-card__button">
+                            <div class="action-card__button">
                                 <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
+                            </div>
+                        </a>
                     </div>
                 </section>
 
@@ -91,51 +85,214 @@
                 <section class="recent-activities">
                     <div class="recent-activities__header">
                         <div class="header__line"></div>
-                        <h2 class="recent-activities__title">Recent Activities</h2>
+                        <h2 class="recent-activities__title">Recent Activity</h2>
                     </div>
                     <p class="recent-activities__subtitle">Latest submissions from your students</p>
 
                     <!-- Activities List -->
                     <div class="activities-list" id="activitiesList">
-                        <!-- Empty State (shown when no activities) -->
-                        <div class="empty-state" id="emptyState">
-                            <div class="empty-state__icon">
-                                <i class="far fa-clipboard"></i>
+                        {% if recent_submissions %}
+                            {% for submission in recent_submissions %}
+                            <div class="activity-card">
+                                <div class="activity-card__avatar">
+                                    <span>{{ submission.submitted_by.first_name.0 }}{{ submission.submitted_by.last_name.0 }}</span>
+                                </div>
+                                <div class="activity-card__content">
+                                    <h3 class="activity-card__title">{{ submission.form.title }}</h3>
+                                    <div class="activity-card__meta">
+                                        <span class="meta__item">
+                                            <strong>{{ submission.submitted_by.first_name }} {{ submission.submitted_by.last_name }}</strong>
+                                            {% if submission.form.team_name %}
+                                             • Team {{ submission.form.team_name }}
+                                            {% endif %}
+                                        </span>
+                                        <span class="meta__item">
+                                            <i class="fas fa-calendar"></i> Deadline: {{ submission.form.due_date|date:"M d, Y" }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="activity-card__actions">
+                                    <span class="activity-card__time">{{ submission.submitted_at|timesince }} ago</span>
+                                    <a href="{% url 'faculty_response_detail' submission.form.id submission.id %}" class="btn-link">View Details</a>
+                                </div>
                             </div>
-                            <h3 class="empty-state__title">No Recent Activities</h3>
-                            <p class="empty-state__text">
-                                When students submit evaluations, they'll appear here.
+                            {% endfor %}
+                            
+                            <div class="view-all-wrapper">
+                                <a href="{% url 'faculty_reports' %}" class="btn-view-all">
+                                    View All Submissions
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        {% else %}
+                            <!-- Empty State -->
+                            <div class="empty-state" id="emptyState">
+                                <div class="empty-state__icon">
+                                    <i class="far fa-clipboard"></i>
+                                </div>
+                                <h3 class="empty-state__title">No Recent Activities</h3>
+                                <p class="empty-state__text">
+                                    When students submit evaluations, they'll appear here.
+                                </p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Forms Management Section -->
+                <section class="forms-management">
+                    <div class="forms-management__header">
+                        <div>
+                            <div class="quick-actions__header">
+                                <div class="header__line"></div>
+                                <h2 class="forms-management__title">Forms Management</h2>
+                            </div>
+                            <p class="forms-management__subtitle">Manage all your evaluation forms with full CRUD functionality</p>
+                        </div>
+                        <a href="{% url 'form_builder' %}" class="btn-create-form">
+                            <i class="fas fa-plus"></i>
+                            Create New Form
+                        </a>
+                    </div>
+
+                    <!-- Forms Statistics -->
+                    <div class="forms-stats">
+                        <div class="stat-card">
+                            <div class="stat-card__value">{{ total_forms }}</div>
+                            <div class="stat-card__label">Total Forms</div>
+                        </div>
+                        <div class="stat-card stat-card--published">
+                            <div class="stat-card__value">{{ published_forms }}</div>
+                            <div class="stat-card__label">Published</div>
+                        </div>
+                        <div class="stat-card stat-card--draft">
+                            <div class="stat-card__value">{{ draft_forms }}</div>
+                            <div class="stat-card__label">Drafts</div>
+                        </div>
+                    </div>
+
+                    <!-- Forms Tabs -->
+                    <div class="forms-tabs">
+                        <button class="forms-tab forms-tab--active" data-tab="all" type="button">
+                            All Forms
+                        </button>
+                        <button class="forms-tab" data-tab="published" type="button">
+                            Published
+                        </button>
+                        <button class="forms-tab" data-tab="drafts" type="button">
+                            Drafts
+                        </button>
+                    </div>
+
+                    <!-- Forms List -->
+                    <div class="forms-list">
+                        <!-- Empty State for Filtered Tabs (hidden by default) -->
+                        <div class="empty-state empty-state--tab-filter" id="tabEmptyState" style="display: none;">
+                            <div class="empty-state__icon">
+                                <i class="far fa-folder-open"></i>
+                            </div>
+                            <h3 class="empty-state__title">No Forms Found</h3>
+                            <p class="empty-state__text" id="tabEmptyStateText">
+                                No forms match the selected filter.
                             </p>
                         </div>
 
-                        <!-- Activity Card Example (will be generated by JS) -->
-                        <!-- Uncomment to test:
-                        <div class="activity-card">
-                            <div class="activity-card__avatar">
-                                <span>SN</span>
-                            </div>
-                            <div class="activity-card__content">
-                                <h3 class="activity-card__title">Comprehensive Peer Evaluation</h3>
-                                <div class="activity-card__meta">
-                                    <span class="meta__item">
-                                        <strong>Studs #1 - Team TEAM_4</strong>
-                                    </span>
-                                    <span class="meta__item">
-                                        <i class="fas fa-users"></i> 3 teammates
-                                    </span>
-                                    <span class="meta__item">
-                                        <i class="fas fa-star"></i> 2.7/5 avg
-                                    </span>
+                        {% if forms %}
+                            {% for form in forms %}
+                            <div class="form-card" data-status="{% if form.privacy == 'private' %}draft{% else %}published{% endif %}" data-form-id="{{ form.id }}">
+                                <div class="form-card__header">
+                                    <div class="form-card__title-section">
+                                        <h3 class="form-card__title">{{ form.title }}</h3>
+                                        <span class="form-card__badge form-card__badge--{% if form.privacy == 'private' %}draft{% else %}published{% endif %}">
+                                            {% if form.privacy == 'private' %}DRAFT{% else %}PUBLISHED{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="form-card__actions">
+                                        {% if form.privacy == 'private' %}
+                                        <button class="btn-icon btn-icon--publish" title="Publish Form" onclick="publishForm({{ form.id }}, '{{ form.title|escapejs }}')">
+                                            <i class="fas fa-upload"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn-icon btn-icon--unpublish" title="Unpublish Form" onclick="unpublishForm({{ form.id }}, '{{ form.title|escapejs }}')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn-icon btn-icon--edit" title="Edit Form" onclick="editForm({{ form.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-icon btn-icon--duplicate" title="Duplicate Form" onclick="duplicateForm({{ form.id }})">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button class="btn-icon btn-icon--delete" title="Delete Form" onclick="deleteForm({{ form.id }}, '{{ form.title|escapejs }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
+                                
+                                <p class="form-card__description">{{ form.description|default:"No description provided"|truncatewords:20 }}</p>
+                                
+                                <div class="form-card__info">
+                                    <div class="form-info-item">
+                                        <span class="form-info-label">Course:</span>
+                                        <span class="form-info-value">{{ form.course_id|default:"N/A" }}</span>
+                                    </div>
+                                    <div class="form-info-item">
+                                        <span class="form-info-label">Due Date:</span>
+                                        <span class="form-info-value">{{ form.due_date|date:"M d, Y, g:i A"|default:"Not set" }}</span>
+                                    </div>
+                                    <div class="form-info-item">
+                                        <span class="form-info-label">Questions:</span>
+                                        <span class="form-info-value">
+                                            {% if form.structure.sections %}
+                                                {% with total_questions=0 section_count=form.structure.sections|length %}
+                                                    {{ section_count }} section{% if section_count != 1 %}s{% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                Not configured
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="form-info-item">
+                                        <span class="form-info-label">Created:</span>
+                                        <span class="form-info-value">{{ form.created_at|date:"M d, Y" }}</span>
+                                    </div>
+                                </div>
+
+                                {% if form.privacy != 'private' %}
+                                <div class="form-card__footer">
+                                    <div class="form-card__stats">
+                                        <span class="stat-item">
+                                            <i class="fas fa-paper-plane"></i>
+                                            {{ form.response_count }} submission{% if form.response_count != 1 %}s{% endif %}
+                                        </span>
+                                    </div>
+                                    <a href="{% url 'faculty_reports' %}?form={{ form.id }}" class="btn-link">View Submissions</a>
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="activity-card__actions">
-                                <span class="activity-card__time">1w ago</span>
-                                <button class="btn-link">View Details</button>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Empty State -->
+                            <div class="empty-state">
+                                <div class="empty-state__icon">
+                                    <i class="far fa-file-alt"></i>
+                                </div>
+                                <h3 class="empty-state__title">No Forms Yet</h3>
+                                <p class="empty-state__text">
+                                    Create your first evaluation form to get started.
+                                </p>
+                                <a href="{% url 'form_builder' %}" class="btn-primary">
+                                    <i class="fas fa-plus"></i>
+                                    Create New Form
+                                </a>
                             </div>
-                        </div>
-                        -->
+                        {% endif %}
                     </div>
                 </section>
             </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'EvalMateApp/js/faculty-dashboard.js' %}?v={{ timestamp|default:'2' }}"></script>
 {% endblock %}

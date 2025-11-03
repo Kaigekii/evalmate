@@ -10,18 +10,23 @@
 {% block content %}
             {% csrf_token %}
             <div class="form-builder">
-                <!-- Header Section -->
-                <div class="form-builder__header">
-                    <div class="header__title">
-                        <h1>Form Builder</h1>
-                        <p>Create custom evaluation forms for your students</p>
+                <!-- Header Section - Reports Style -->
+                <div class="reports-hero form-builder__hero">
+                    <div class="reports-hero__content">
+                        <div class="reports-hero__icon">
+                            <i class="fas fa-paint-brush"></i>
+                        </div>
+                        <div>
+                            <h1 class="reports-hero__title">Form Builder</h1>
+                            <p class="reports-hero__subtitle">Create custom evaluation forms for your students</p>
+                        </div>
                     </div>
-                    <div class="header__actions">
-                        <button class="btn btn-secondary" id="saveDraft">
+                    <div class="reports-hero__stats" style="gap: 1rem;">
+                        <button class="btn btn-hero-secondary" id="saveDraft">
                             <i class="fas fa-save"></i>
                             Save Draft
                         </button>
-                        <button class="btn btn-primary" id="publishForm">
+                        <button class="btn btn-hero-primary" id="publishForm">
                             <i class="fas fa-paper-plane"></i>
                             Publish Form
                         </button>
@@ -419,5 +424,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'EvalMateApp/js/form-builder.js' %}"></script>
+<script src="{% static 'EvalMateApp/js/form-builder.js' %}?v={{ timestamp|default:'4' }}"></script>
 {% endblock %}

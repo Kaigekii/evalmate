@@ -76,21 +76,20 @@ function handleLogin() {
     const storedData = JSON.parse(localStorage.getItem('userData')) || {};
     const user = Object.values(storedData).find(u => u.username === username);
 
-    setTimeout(() => {
-        if (!user) {
-            showMessage('errorMessage', 'Sorry, account not found. Try to sign up first.', true);
-        } else if (user.password !== password) {
-            showMessage('errorMessage', 'Invalid password. Please try again.', true);
-        } else {
-            showMessage('successMessage', `Welcome back! Logging in as ${user.accountType}...`);
-            setTimeout(() => {
-                console.log(`Login successful for ${username} (${user.accountType})`);
-            }, 1500);
-        }
-
+    // Removed artificial delay for better performance
+    if (!user) {
+        showMessage('errorMessage', 'Sorry, account not found. Try to sign up first.', true);
         loginBtn.classList.remove('loading');
         loginBtn.disabled = false;
-    }, 1500);
+    } else if (user.password !== password) {
+        showMessage('errorMessage', 'Invalid password. Please try again.', true);
+        loginBtn.classList.remove('loading');
+        loginBtn.disabled = false;
+    } else {
+        showMessage('successMessage', `Welcome back! Logging in as ${user.accountType}...`);
+        console.log(`Login successful for ${username} (${user.accountType})`);
+        // Form will submit naturally, no artificial delay
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

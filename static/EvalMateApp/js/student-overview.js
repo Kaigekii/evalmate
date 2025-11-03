@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSPA();
     initDashboard();
     loadStats();
-    loadDeadlines();
 });
 
 // ==================== SPA Navigation ====================
@@ -84,7 +83,6 @@ function loadSectionContent(sectionName) {
     switch(sectionName) {
         case 'overview':
             loadStats();
-            loadDeadlines();
             break;
         case 'pending':
             loadPendingEvaluations();
@@ -127,22 +125,33 @@ function updateCurrentDate() {
 
 async function loadStats() {
     try {
-        // TODO: Replace with actual API call
-        const stats = {
-            pending: 0,
-            completed: 0,
-            completionRate: 0
-        };
+        // Fetch both pending and history to calculate stats
+        const [pendingResponse, historyResponse] = await Promise.all([
+            fetch('/api/student/pending-evaluations/'),
+            fetch('/api/student/evaluation-history/')
+        ]);
+        
+        if (!pendingResponse.ok || !historyResponse.ok) {
+            throw new Error('Failed to load stats');
+        }
+        
+        const pendingData = await pendingResponse.json();
+        const historyData = await historyResponse.json();
+        
+        const pendingCount = pendingData.pending_evaluations.length;
+        const completedCount = historyData.history.length;
+        const totalCount = pendingCount + completedCount;
+        const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
         
         // Update UI
-        document.getElementById('pendingCount').textContent = stats.pending;
-        document.getElementById('completedCount').textContent = stats.completed;
-        document.getElementById('completionRate').textContent = stats.completionRate + '%';
+        document.getElementById('pendingCount').textContent = pendingCount;
+        document.getElementById('completedCount').textContent = completedCount;
+        document.getElementById('completionRate').textContent = completionRate + '%';
         
         // Update notification badge
         const badge = document.getElementById('notificationBadge');
-        if (badge && stats.pending > 0) {
-            badge.textContent = stats.pending;
+        if (badge && pendingCount > 0) {
+            badge.textContent = pendingCount;
             badge.style.display = 'block';
         } else if (badge) {
             badge.style.display = 'none';
@@ -152,52 +161,8 @@ async function loadStats() {
     }
 }
 
-async function loadDeadlines() {
-    try {
-        // TODO: Replace with actual API call
-        const deadlines = [];
-        
-        const emptyState = document.getElementById('emptyDeadlines');
-        const deadlinesList = document.getElementById('deadlinesList');
-        
-        if (deadlines.length === 0) {
-            emptyState.style.display = 'flex';
-            deadlinesList.style.display = 'none';
-        } else {
-            emptyState.style.display = 'none';
-            deadlinesList.style.display = 'block';
-            renderDeadlines(deadlines);
-        }
-    } catch (error) {
-        console.error('Error loading deadlines:', error);
-    }
-}
-
-function renderDeadlines(deadlines) {
-    const deadlinesList = document.getElementById('deadlinesList');
-    deadlinesList.innerHTML = '';
-    
-    deadlines.forEach(deadline => {
-        const card = createDeadlineCard(deadline);
-        deadlinesList.appendChild(card);
-    });
-}
-
-function createDeadlineCard(deadline) {
-    const card = document.createElement('div');
-    card.className = 'deadline-card';
-    card.innerHTML = `
-        <div class="deadline-card__header">
-            <h3 class="deadline-card__title">${deadline.title}</h3>
-            <span class="deadline-card__badge">${deadline.status}</span>
-        </div>
-        <div class="deadline-card__body">
-            <p class="deadline-card__course">${deadline.course}</p>
-            <p class="deadline-card__due">Due: ${deadline.dueDate}</p>
-        </div>
-    `;
-    return card;
-}
+// Removed loadDeadlines, renderDeadlines, and createDeadlineCard functions
+// Deadlines are now shown in the Pending Evaluations section
 
 // ==================== Pending Evaluations Section ====================
 
@@ -214,78 +179,166 @@ function loadPendingEvaluations(filter = 'all') {
         sortSelect.addEventListener('change', handleSortChange);
     }
     
-    // Initialize refresh button
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            loadPendingEvaluations();
-            updateLastUpdated();
-        });
-    }
-    
-    // Update last updated time
-    updateLastUpdated();
-    
     // Load evaluations
     fetchPendingEvaluations(filter);
 }
 
 function handleFilterClick(event) {
+    // Update UI immediately
     document.querySelectorAll('#pendingSection .filter-btn').forEach(btn => {
         btn.classList.remove('filter-btn--active');
     });
     
     event.target.classList.add('filter-btn--active');
     const filter = event.target.dataset.filter;
-    fetchPendingEvaluations(filter);
-}
-
-function handleSortChange(event) {
-    const sortBy = event.target.value;
-    console.log('Sort by:', sortBy);
-    // TODO: Implement sorting
-}
-
-function updateLastUpdated() {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString();
-    const lastUpdatedEl = document.getElementById('lastUpdated');
-    if (lastUpdatedEl) {
-        lastUpdatedEl.textContent = timeString;
+    
+    // If data already loaded, filter instantly without re-fetching
+    if (allEvaluations.length > 0) {
+        currentFilter = filter;
+        applyFilterAndSort();
+    } else {
+        // First load - fetch data
+        fetchPendingEvaluations(filter);
     }
 }
 
+function handleSortChange(event) {
+    currentSort = event.target.value;
+    // Apply sort instantly - no delay
+    applyFilterAndSort();
+}
+
+// Store evaluations globally for sorting
+let allEvaluations = [];
+let currentFilter = 'all';
+let currentSort = 'due_date';
+
 async function fetchPendingEvaluations(filter = 'all') {
+    const evaluationsList = document.getElementById('evaluationsList');
+    const emptyState = document.getElementById('emptyStatePending');
+    
     try {
-        // TODO: Replace with actual API call
-        const evaluations = [];
+        currentFilter = filter;
+        
+        // Show loading state
+        if (evaluationsList) {
+            evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Loading evaluations...</p></div>';
+            evaluationsList.style.display = 'block';
+        }
+        if (emptyState) emptyState.style.display = 'none';
+        
+        const response = await fetch('/api/student/pending-evaluations/', {
+            cache: 'no-cache'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load pending evaluations');
+        }
+        
+        const data = await response.json();
+        allEvaluations = data.pending_evaluations || [];
+        
+        // Apply filter and render immediately
+        requestAnimationFrame(() => {
+            applyFilterAndSort();
+        });
         
         // Update stats
         const totalPendingEl = document.getElementById('totalPending');
         const dueTodayEl = document.getElementById('dueToday');
+        const pendingCountEl = document.getElementById('pendingCount');
         
-        if (totalPendingEl) totalPendingEl.textContent = evaluations.length;
-        if (dueTodayEl) dueTodayEl.textContent = evaluations.filter(e => e.dueToday).length || 0;
+        const dueToday = allEvaluations.filter(e => e.days_left !== null && e.days_left === 0).length;
         
-        // Update UI
-        const emptyState = document.getElementById('emptyStatePending');
-        const evaluationsList = document.getElementById('evaluationsList');
-        
-        if (evaluations.length === 0) {
-            emptyState.style.display = 'flex';
-            evaluationsList.style.display = 'none';
-        } else {
-            emptyState.style.display = 'none';
-            evaluationsList.style.display = 'block';
-            renderEvaluations(evaluations);
-        }
+        if (totalPendingEl) totalPendingEl.textContent = allEvaluations.length;
+        if (dueTodayEl) dueTodayEl.textContent = dueToday;
+        if (pendingCountEl) pendingCountEl.textContent = allEvaluations.length;
     } catch (error) {
         console.error('Error loading evaluations:', error);
+        if (evaluationsList) {
+            evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Failed to load evaluations. Please refresh the page.</p></div>';
+        }
     }
+}
+
+function applyFilterAndSort() {
+    // Apply filter immediately (no delay)
+    let filtered = allEvaluations;
+    
+    if (currentFilter === 'urgent') {
+        // Urgent: 3 days or less
+        filtered = allEvaluations.filter(e => e.days_left !== null && e.days_left <= 3);
+    } else if (currentFilter === 'in-progress') {
+        // In Progress: has draft
+        filtered = allEvaluations.filter(e => e.has_draft === true);
+    } else if (currentFilter === 'not-started') {
+        // Not Started: no draft
+        filtered = allEvaluations.filter(e => e.has_draft !== true);
+    }
+    // 'all' shows everything
+    
+    // Apply sort immediately
+    filtered = sortEvaluations(filtered, currentSort);
+    
+    // Update UI with optimized rendering
+    const emptyState = document.getElementById('emptyStatePending');
+    const evaluationsList = document.getElementById('evaluationsList');
+    
+    if (!evaluationsList) return;
+    
+    if (filtered.length === 0) {
+        emptyState.style.display = 'flex';
+        evaluationsList.style.display = 'none';
+    } else {
+        emptyState.style.display = 'none';
+        evaluationsList.style.display = 'block';
+        renderEvaluationsFast(filtered);
+    }
+}
+
+// Optimized rendering using DocumentFragment
+function renderEvaluationsFast(evaluations) {
+    const evaluationsList = document.getElementById('evaluationsList');
+    if (!evaluationsList) return;
+    
+    // Use DocumentFragment for batch DOM update (much faster)
+    const fragment = document.createDocumentFragment();
+    
+    evaluations.forEach(evaluation => {
+        const card = createEvaluationCard(evaluation);
+        fragment.appendChild(card);
+    });
+    
+    // Single DOM update
+    evaluationsList.innerHTML = '';
+    evaluationsList.appendChild(fragment);
+}
+
+function sortEvaluations(evaluations, sortBy) {
+    const sorted = [...evaluations];
+    
+    if (sortBy === 'due_date') {
+        // Sort by due date (earliest first, null last)
+        sorted.sort((a, b) => {
+            if (a.due_date === null && b.due_date === null) return 0;
+            if (a.due_date === null) return 1;
+            if (b.due_date === null) return -1;
+            return new Date(a.due_date) - new Date(b.due_date);
+        });
+    } else if (sortBy === 'title') {
+        // Sort by title (A-Z)
+        sorted.sort((a, b) => {
+            return a.title.localeCompare(b.title);
+        });
+    }
+    
+    return sorted;
 }
 
 function renderEvaluations(evaluations) {
     const evaluationsList = document.getElementById('evaluationsList');
+    if (!evaluationsList) return;
+    
     evaluationsList.innerHTML = '';
     
     evaluations.forEach(evaluation => {
@@ -297,20 +350,122 @@ function renderEvaluations(evaluations) {
 function createEvaluationCard(evaluation) {
     const card = document.createElement('div');
     card.className = 'evaluation-card';
+    
+    // Determine urgency badge
+    let urgencyBadge = '';
+    let urgencyClass = '';
+    if (evaluation.days_left !== null) {
+        if (evaluation.days_left === 0) {
+            urgencyBadge = '<span class="badge badge--danger">Due Today</span>';
+            urgencyClass = 'evaluation-card--urgent';
+        } else if (evaluation.days_left <= 2) {
+            urgencyBadge = `<span class="badge badge--warning">${evaluation.days_left} day${evaluation.days_left > 1 ? 's' : ''} left</span>`;
+            urgencyClass = 'evaluation-card--soon';
+        } else {
+            urgencyBadge = `<span class="badge badge--info">${evaluation.days_left} days left</span>`;
+        }
+    }
+    
+    card.className = `evaluation-card ${urgencyClass}`;
+    
+    // Truncate description
+    const description = evaluation.description || 'No description provided';
+    const truncatedDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
+    
+    // Team settings
+    const teamSettings = evaluation.team_settings || {};
+    const teamSizeText = `${teamSettings.min_team_size || 'N/A'} - ${teamSettings.max_team_size || 'N/A'} members`;
+    const selfEvalText = teamSettings.allow_self_evaluation ? 'Self-eval enabled' : 'Self-eval disabled';
+    
+    // Button text based on draft status
+    const buttonText = evaluation.has_draft ? 'Continue Evaluation' : 'Answer Evaluation';
+    const buttonIcon = evaluation.has_draft ? 'fa-play-circle' : 'fa-play';
+    
+    // Add status badge for in-progress
+    let statusBadge = '';
+    if (evaluation.has_draft) {
+        statusBadge = '<span class="badge badge--success" style="margin-left: 10px;"><i class="fas fa-pencil-alt"></i> Draft Saved</span>';
+    }
+    
     card.innerHTML = `
         <div class="evaluation-card__header">
-            <h3>${evaluation.title}</h3>
-            <span class="badge badge--${evaluation.status}">${evaluation.status}</span>
+            <div class="evaluation-card__title-row">
+                <h3 class="evaluation-card__title">${escapeHtml(evaluation.title)}</h3>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    ${urgencyBadge}
+                    ${statusBadge}
+                </div>
+            </div>
+            <div class="evaluation-card__meta">
+                <span class="meta-item"><i class="fas fa-book"></i> ${escapeHtml(evaluation.course)}</span>
+                <span class="meta-item"><i class="fas fa-users"></i> ${teamSizeText}</span>
+                <span class="meta-item"><i class="fas ${teamSettings.allow_self_evaluation ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${selfEvalText}</span>
+            </div>
         </div>
         <div class="evaluation-card__body">
-            <p><strong>Course:</strong> ${evaluation.course}</p>
-            <p><strong>Due:</strong> ${evaluation.dueDate}</p>
+            <p class="evaluation-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
         <div class="evaluation-card__footer">
-            <button class="btn btn--primary">Start Evaluation</button>
+            <button class="btn btn--primary" onclick="startEvaluation(${evaluation.form_id})">
+                <i class="fas ${buttonIcon}"></i> ${buttonText}
+            </button>
+            <button class="btn btn--secondary btn--icon" onclick="removePendingEvaluation(${evaluation.id}, '${escapeHtml(evaluation.title)}')">
+                <i class="fas fa-trash"></i> Remove
+            </button>
         </div>
     `;
     return card;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function startEvaluation(formId) {
+    window.location.href = `/forms/${formId}/eval/team-setup/`;
+}
+
+async function removePendingEvaluation(pendingId, title) {
+    if (!confirm(`Remove "${title}" from your pending evaluations?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to remove evaluation');
+        }
+        
+        // Reload pending evaluations
+        fetchPendingEvaluations();
+        loadStats(); // Update overview stats
+    } catch (error) {
+        console.error('Error removing evaluation:', error);
+        alert('Failed to remove evaluation. Please try again.');
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
 // ==================== History Section ====================
@@ -338,8 +493,27 @@ function handleHistoryFilterClick(event) {
 
 async function fetchHistory(filter = 'all') {
     try {
-        // TODO: Replace with actual API call
-        const history = [];
+        const response = await fetch('/api/student/evaluation-history/');
+        if (!response.ok) {
+            throw new Error('Failed to load evaluation history');
+        }
+        
+        const data = await response.json();
+        let history = data.history || [];
+        
+        // Apply filter
+        if (filter === 'recent') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            history = history.filter(item => new Date(item.submitted_at) >= sevenDaysAgo);
+        } else if (filter === 'by-course') {
+            // Group by course (already sorted by date in API)
+            history = history;
+        }
+        
+        // Update completed count
+        const completedCountEl = document.getElementById('completedCount');
+        if (completedCountEl) completedCountEl.textContent = history.length;
         
         // Update UI
         const emptyState = document.getElementById('emptyStateHistory');
@@ -371,18 +545,42 @@ function renderHistory(history) {
 function createHistoryCard(item) {
     const card = document.createElement('div');
     card.className = 'history-card';
+    
+    // Format date
+    const submittedDate = new Date(item.submitted_at);
+    const formattedDate = submittedDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Truncate description
+    const description = item.description || 'No description';
+    const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
+    
     card.innerHTML = `
         <div class="history-card__header">
-            <h3>${item.title}</h3>
-            <span class="history-card__date">Completed: ${item.completedDate}</span>
+            <div class="history-card__icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="history-card__title-section">
+                <h3 class="history-card__title">${escapeHtml(item.title)}</h3>
+                <span class="history-card__date"><i class="far fa-clock"></i> ${formattedDate}</span>
+            </div>
         </div>
         <div class="history-card__body">
-            <p><strong>Course:</strong> ${item.course}</p>
-            <p><strong>Group:</strong> ${item.group}</p>
-            <p><strong>Members Evaluated:</strong> ${item.membersCount}</p>
+            <div class="history-card__info">
+                <span class="info-item"><i class="fas fa-book"></i> <strong>Course:</strong> ${escapeHtml(item.course)}</span>
+                <span class="info-item"><i class="fas fa-users"></i> <strong>Team:</strong> ${escapeHtml(item.team_identifier)}</span>
+            </div>
+            <p class="history-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
         <div class="history-card__footer">
-            <button class="btn btn--secondary">View Details</button>
+            <span class="history-card__badge">
+                <i class="fas fa-calendar-check"></i> Completed
+            </span>
         </div>
     `;
     return card;
@@ -590,6 +788,88 @@ function escapeHtml(unsafe) {
          .replace(/\"/g, "&quot;")
          .replace(/'/g, "&#039;");
 }
+
+// ==================== Sign Out Modal ====================
+
+/**
+ * Initialize sign out button
+ */
+function initSignOut() {
+    const signOutBtns = document.querySelectorAll('.sidebar__link--signout');
+    
+    signOutBtns.forEach(btn => {
+        if (!btn.dataset.initialized) {
+            btn.dataset.initialized = 'true';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSignOutModal(btn.href);
+            });
+        }
+    });
+}
+
+/**
+ * Show custom sign out confirmation modal
+ */
+function showSignOutModal(logoutUrl) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'logout-modal-overlay';
+    modal.innerHTML = `
+        <div class="logout-modal">
+            <div class="logout-modal__icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h3 class="logout-modal__title">Sign Out</h3>
+            <p class="logout-modal__message">Are you sure you want to sign out?</p>
+            <div class="logout-modal__actions">
+                <button class="btn-modal btn-modal--cancel">Cancel</button>
+                <button class="btn-modal btn-modal--confirm">Sign Out</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Trigger animation
+    setTimeout(() => modal.classList.add('active'), 10);
+    
+    // Get buttons
+    const cancelBtn = modal.querySelector('.btn-modal--cancel');
+    const confirmBtn = modal.querySelector('.btn-modal--confirm');
+    
+    // Cancel button - close modal
+    cancelBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 300);
+    });
+    
+    // Confirm button - proceed with logout
+    confirmBtn.addEventListener('click', () => {
+        // Clear session storage and local storage
+        sessionStorage.clear();
+        localStorage.clear();
+        
+        // Clear browser history and navigate to logout
+        if (window.history && window.history.pushState) {
+            window.history.pushState(null, null, window.location.href);
+            window.location.replace(logoutUrl);
+        } else {
+            window.location.href = logoutUrl;
+        }
+    });
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        }
+    });
+}
+
+// Initialize sign out when DOM is ready
+initSignOut();
 
 // ==================== Global Helper ====================
 

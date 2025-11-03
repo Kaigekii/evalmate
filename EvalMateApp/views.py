@@ -8,11 +8,13 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from django.views.decorators.cache import never_cache, cache_control
+from django.views.decorators.csrf import csrf_exempt
 
-from .models import FormTemplate, FormResponse, ResponseAnswer
+from .models import FormTemplate, FormResponse, ResponseAnswer, Profile, PendingEvaluation, DraftResponse
 
 import json
-from django.views.decorators.csrf import csrf_exempt
+import time
 
 
 def home_view(request):
@@ -48,21 +50,25 @@ def login_view(request):
                 
                 # Log the user in
                 login(request, user)
-                messages.success(request, f'Welcome back, {user.username}!')
                 
                 # Redirect based on account type
                 if profile.account_type == 'student':
                     return redirect('student_dashboard')
                 elif profile.account_type == 'faculty':
-                    return redirect('faculty_dashboard')  # You'll need to create this
+                    return redirect('faculty_dashboard')
                 else:
                     return redirect('home')
                     
             except Exception as e:
-                messages.error(request, f'Profile not found: {str(e)}')
+                messages.error(request, 'Unable to access your profile. Please contact support.')
         else:
             messages.error(request, 'Invalid username or password.')
     else:
+        # Clear any old messages when showing fresh login page
+        storage = messages.get_messages(request)
+        for _ in storage:
+            pass
+        storage.used = True
         form = AuthenticationForm()
     return render(request, 'EvalMateApp/login.html', {'form': form})
 
@@ -79,30 +85,43 @@ def register_view(request):
                 
                 # Log the user in
                 login(request, user)
-                messages.success(request, f'Account created for {user.username}!')
                 
                 # Redirect based on account type
                 if profile.account_type == 'student':
                     return redirect('student_dashboard')
                 elif profile.account_type == 'faculty':
-                    return redirect('faculty_dashboard')  # You'll need to create this
+                    return redirect('faculty_dashboard')
                 else:
                     return redirect('home')
                     
             except Exception as e:
-                messages.error(request, f'Failed to save to database: {str(e)}. Please try again.')
+                messages.error(request, 'Unable to create account. Please try again.')
         else:
-            messages.error(request, 'Registration failed. Please check the form.')
+            messages.error(request, 'Please correct the errors in the form.')
     else:
         user_form = UserRegisterForm()
         profile_form = ProfileForm()
     return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
 
 def logout_view(request):
+    # Clear all messages before logout
+    storage = messages.get_messages(request)
+    for _ in storage:
+        pass  # Iterate through to clear
+    storage.used = True
+    
     logout(request)
-    messages.info(request, 'You have been logged out.')
-    return redirect('login')
+    # Clear session data
+    request.session.flush()
+    response = redirect('login')
+    # Prevent caching
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
+@never_cache
+@login_required
 def student_dashboard_view(request):
     """Student Dashboard - Single Page Application (SPA)"""
     if not request.user.is_authenticated:
@@ -110,58 +129,104 @@ def student_dashboard_view(request):
     
     try:
         profile = request.user.profile
-        if profile.account_type != 'student':
-            messages.error(request, 'Access denied. Students only.')
-            return redirect('home')
-    except:
-        messages.error(request, 'Profile not found.')
+        # Check if this is actually a faculty account
+        if profile.account_type == 'faculty':
+            # Only redirect if explicitly faculty
+            return redirect('faculty_dashboard')
+        # Allow students and any other account type to see student dashboard
+    except Profile.DoesNotExist:
+        # No profile exists - redirect to login
+        return redirect('login')
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in student_dashboard_view: {str(e)}")
         return redirect('login')
     
+    import time
     context = {
         'user': request.user,
-        'profile': profile
+        'profile': profile,
+        'timestamp': int(time.time())  # Cache busting
     }
     return render(request, 'EvalMateApp/student-overview.html', context)
 
+@never_cache
+@login_required
 def faculty_dashboard_view(request):
-    """Faculty dashboard view"""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+    """Faculty dashboard view with recent activities and forms management"""
     try:
         profile = request.user.profile
-        if profile.account_type != 'faculty':
-            messages.error(request, 'Access denied. Faculty only.')
-            return redirect('home')
-    except:
-        messages.error(request, 'Profile not found.')
+        # Check if this is actually a student account
+        if profile.account_type == 'student':
+            # Only redirect if explicitly student
+            return redirect('student_dashboard')
+        # Allow faculty and any other account type to see faculty dashboard
+    except Profile.DoesNotExist:
+        # No profile exists - redirect to login
         return redirect('login')
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in faculty_dashboard_view: {str(e)}")
+        return redirect('login')
+    
+    from django.db.models import Count, Prefetch
+    
+    # Get recent activities (last 3 submissions)
+    recent_submissions = FormResponse.objects.filter(
+        form__created_by=profile
+    ).select_related(
+        'form', 'submitted_by__user'
+    ).order_by('-submitted_at')[:3]
+    
+    # Get all forms created by this faculty
+    forms = FormTemplate.objects.filter(
+        created_by=profile
+    ).annotate(
+        response_count=Count('responses')
+    ).order_by('-created_at')
+    
+    # Count statistics
+    total_forms = forms.count()
+    published_forms = forms.exclude(privacy='private').count()  # All non-private are published
+    draft_forms = forms.filter(privacy='private').count()
+    
+    import time
     
     context = {
         'user': request.user,
         'profile': profile,
+        'recent_submissions': recent_submissions,
+        'forms': forms,
+        'total_forms': total_forms,
+        'published_forms': published_forms,
+        'draft_forms': draft_forms,
+        'timestamp': int(time.time()),  # Cache buster for JavaScript files
     }
     return render(request, 'EvalMateApp/faculty-dashboard.html', context)
 
+@never_cache
+@never_cache
 @login_required
 def form_builder_view(request):
     """Form builder view for faculty members"""
     try:
         profile = request.user.profile
         if profile.account_type != 'faculty':
-            messages.error(request, 'Access denied. Faculty only.')
-            return redirect('home')
+            # Silently redirect without error message
+            return redirect('student_dashboard')
     except Exception as e:
-        messages.error(request, f'Profile not found: {str(e)}')
+        # Silently redirect to login without error message
         return redirect('login')
     
     context = {
         'user': request.user,
         'profile': profile,
+        'timestamp': int(time.time())
     }
     return render(request, 'EvalMateApp/form-builder.html', context)
 
 
+@never_cache
 @login_required
 def faculty_reports_view(request):
     # Only faculty
@@ -169,51 +234,157 @@ def faculty_reports_view(request):
     if profile.account_type != 'faculty':
         return HttpResponseForbidden('Access denied')
 
-    forms = FormTemplate.objects.filter(created_by=profile).order_by('-created_at')
+    from django.db.models import Count, Q
+    from django.db.models.functions import Concat
+    from django.db.models import CharField, Value
+    
     today = timezone.localdate()
+    
+    # Count unique students (submitted_by + team_identifier combinations) instead of all responses
+    forms = FormTemplate.objects.filter(created_by=profile).select_related('created_by').order_by('-created_at')
+    
     forms_data = []
     for f in forms:
-        total = f.responses.count()
-        todays = f.responses.filter(submitted_at__date=today).count()
-        unread = f.responses.filter(is_read=False).count()
+        # Get unique student submissions by grouping (submitted_by, team_identifier)
+        responses = f.responses.select_related('submitted_by').all()
+        unique_students = set()
+        unique_today = set()
+        has_unread = False
+        
+        for r in responses:
+            student_key = (r.submitted_by.id, r.team_identifier)
+            unique_students.add(student_key)
+            
+            if r.submitted_at.date() == today:
+                unique_today.add(student_key)
+            
+            if not r.is_read:
+                has_unread = True
+        
         forms_data.append({
             'form': f,
-            'total_submissions': total,
-            'todays_submissions': todays,
-            'unread_submissions': unread,
+            'total_submissions': len(unique_students),
+            'todays_submissions': len(unique_today),
+            'unread_submissions': 1 if has_unread else 0,
         })
 
-    return render(request, 'EvalMateApp/reports_list.html', {'forms_data': forms_data, 'profile': profile})
+    return render(request, 'EvalMateApp/reports_list.html', {
+        'forms_data': forms_data, 
+        'profile': profile,
+        'timestamp': int(time.time())
+    })
 
 
+@never_cache
 @login_required
 def faculty_form_responses_view(request, form_id):
     profile = request.user.profile
     if profile.account_type != 'faculty':
         return HttpResponseForbidden('Access denied')
 
-    form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
-    responses = form.responses.select_related('submitted_by').order_by('-submitted_at')
-    return render(request, 'EvalMateApp/reports_form_responses.html', {'form': form, 'responses': responses})
+    form = get_object_or_404(FormTemplate.objects.select_related('created_by'), id=form_id, created_by=profile)
+    
+    # Group responses by student and team, keeping individual teammates
+    from collections import defaultdict
+    grouped_responses = defaultdict(lambda: {
+        'student': None,
+        'team': None,
+        'teammates': [],
+        'submitted_at': None,
+        'has_unread': False
+    })
+    
+    all_responses = form.responses.select_related('submitted_by', 'submitted_by__user').order_by('-submitted_at')
+    
+    for response in all_responses:
+        key = (response.submitted_by.id, response.team_identifier)
+        group = grouped_responses[key]
+        
+        if group['student'] is None:
+            group['student'] = response.submitted_by
+            group['team'] = response.team_identifier
+            group['submitted_at'] = response.submitted_at
+        
+        # Add each teammate as a separate item
+        group['teammates'].append({
+            'name': response.teammate_name,
+            'response_id': response.id,
+            'is_read': response.is_read,
+            'submitted_at': response.submitted_at
+        })
+        
+        if not response.is_read:
+            group['has_unread'] = True
+    
+    # Convert to list and sort by submission time
+    responses_list = sorted(grouped_responses.values(), key=lambda x: x['submitted_at'], reverse=True)
+    
+    # Count unique students who submitted (not total teammate evaluations)
+    total_responses = len(responses_list)
+    
+    return render(request, 'EvalMateApp/reports_form_responses.html', {
+        'form': form, 
+        'grouped_responses': responses_list,
+        'total_responses': total_responses
+    })
 
 
+@never_cache
 @login_required
 def faculty_response_detail_view(request, form_id, response_id):
     profile = request.user.profile
     if profile.account_type != 'faculty':
         return HttpResponseForbidden('Access denied')
 
-    form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
-    response = get_object_or_404(FormResponse, id=response_id, form=form)
-    # mark read
+    form = get_object_or_404(FormTemplate.objects.select_related('created_by'), id=form_id, created_by=profile)
+    response = get_object_or_404(
+        FormResponse.objects.select_related('submitted_by', 'submitted_by__user', 'form').prefetch_related('answers'),
+        id=response_id, 
+        form=form
+    )
+    
+    # Mark as read
     if not response.is_read:
         response.is_read = True
-        response.save()
-
+        response.save(update_fields=['is_read'])
+    
+    # Parse form structure to get actual questions
+    sections = form.structure.get('sections', []) if form.structure else []
+    
+    # Create a mapping of question_id -> question data
+    question_map = {}
+    for section in sections:
+        for question in section.get('questions', []):
+            question_id = question.get('id')
+            if question_id:
+                # Store both with and without 'question_' prefix
+                question_map[str(question_id)] = question
+                question_map[f"question_{question_id}"] = question
+    
+    # Build enriched answers list with full question data
     answers = response.answers.all()
-    return render(request, 'EvalMateApp/reports_response_detail.html', {'form': form, 'response': response, 'answers': answers})
+    enriched_answers = []
+    for answer in answers:
+        question_id = answer.question
+        question_data = question_map.get(question_id, {})
+        enriched_answers.append({
+            'question_id': question_id,
+            'question_data': question_data,
+            'answer': answer.answer,
+            'answer_obj': answer
+        })
+    
+    context = {
+        'form': form,
+        'response': response,
+        'answers': enriched_answers,
+        'sections': sections,
+    }
+    
+    return render(request, 'EvalMateApp/reports_response_detail.html', context)
 
 
+@never_cache
 @login_required
 def student_search_forms(request):
     # AJAX endpoint returning JSON list of forms the student can see
@@ -222,7 +393,8 @@ def student_search_forms(request):
         return JsonResponse({'error': 'Access denied'}, status=403)
 
     q = request.GET.get('q', '').strip()
-    qs = FormTemplate.objects.all()
+    # EXCLUDE DRAFTS - only show published forms
+    qs = FormTemplate.objects.exclude(privacy='private')
     results = []
 
     if q:
@@ -231,7 +403,7 @@ def student_search_forms(request):
     else:
         qs = qs.none()
 
-    # Filter by privacy rules
+    # Filter by privacy rules (exclude drafts already done above)
     visible = []
     for f in qs:
         if f.privacy == 'institution' and f.institution and f.institution == profile.institution:
@@ -251,39 +423,61 @@ def student_search_forms(request):
     return JsonResponse({'results': results})
 
 
+@never_cache
 @login_required
 def student_form_view(request, form_id):
+    """Entry point when student clicks on a form - shows passcode page if required"""
     profile = request.user.profile
     if profile.account_type != 'student':
         return HttpResponseForbidden('Access denied')
 
     form = get_object_or_404(FormTemplate, id=form_id)
 
-    # check privacy
+    # BLOCK DRAFTS - students cannot access unpublished forms
+    if form.privacy == 'private':
+        messages.error(request, 'This form is not published yet.')
+        return redirect('student_dashboard')
+
+    # Check privacy
     allowed = False
     if form.privacy == 'institution' and form.institution == profile.institution:
         allowed = True
     elif form.privacy == 'institution_course' and form.institution == profile.institution and form.course_id:
-        # allow if student matches course? allow view; passcode still enforced
         allowed = True
 
     if not allowed:
         messages.error(request, 'This form is not available for your institution or course.')
         return redirect('student_dashboard')
 
-    # check passcode stored in session
-    access_key = f'form_access_{form.id}'
-    has_access = request.session.get(access_key, False)
-    if form.passcode and not has_access:
-        # show passcode form
-        return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
+    # Clear any old messages before showing passcode page
+    storage = messages.get_messages(request)
+    storage.used = True
+    
+    # If form has passcode, check if already verified in this session
+    if form.passcode:
+        verified_forms = request.session.get('verified_forms', [])
+        if form.id not in verified_forms:
+            # Passcode not yet verified - show passcode page
+            return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
+    
+    # No passcode required OR already verified - add directly to pending evaluations
+    pending, created = PendingEvaluation.objects.get_or_create(
+        student=profile,
+        form=form
+    )
+    
+    if created:
+        messages.success(request, f'"{form.title}" has been added to your pending evaluations!')
+    else:
+        messages.info(request, f'"{form.title}" is already in your pending evaluations.')
+    
+    return redirect('student_dashboard')
 
-    # show form for answering
-    return render(request, 'EvalMateApp/student_form_view.html', {'form': form})
 
-
+@never_cache
 @login_required
 def student_form_access(request, form_id):
+    """Handle passcode verification and add form to pending evaluations"""
     profile = request.user.profile
     if profile.account_type != 'student':
         return HttpResponseForbidden('Access denied')
@@ -293,14 +487,40 @@ def student_form_access(request, form_id):
         return redirect('student_form_view', form_id=form.id)
 
     entered = request.POST.get('passcode', '').strip()
-    if form.passcode and entered == form.passcode:
-        request.session[f'form_access_{form.id}'] = True
-        return redirect('student_form_view', form_id=form.id)
-    else:
+    
+    # Clear all old messages first
+    storage = messages.get_messages(request)
+    storage.used = True
+    
+    # Check passcode if required
+    if form.passcode and entered != form.passcode:
         messages.error(request, 'Incorrect passcode.')
         return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
+    
+    # Passcode correct - store in session to avoid re-asking
+    if form.passcode:
+        verified_forms = request.session.get('verified_forms', [])
+        if form.id not in verified_forms:
+            verified_forms.append(form.id)
+            request.session['verified_forms'] = verified_forms
+            request.session.modified = True
+    
+    # Add to pending evaluations
+    pending, created = PendingEvaluation.objects.get_or_create(
+        student=profile,
+        form=form
+    )
+    
+    if created:
+        messages.success(request, f'"{form.title}" has been added to your pending evaluations!')
+    else:
+        messages.info(request, f'"{form.title}" is already in your pending evaluations.')
+    
+    # Redirect to student dashboard (pending evaluations tab)
+    return redirect('student_dashboard')
 
 
+@never_cache
 @login_required
 def student_form_submit(request, form_id):
     profile = request.user.profile
@@ -325,6 +545,7 @@ def student_form_submit(request, form_id):
     return render(request, 'EvalMateApp/student_form_success.html', {'form': form})
 
 
+@never_cache
 @csrf_exempt
 @login_required
 def api_publish_form(request):
@@ -364,7 +585,8 @@ def api_publish_form(request):
         settings = payload.get('settings', {})
         course_id = settings.get('courseId', '')
         institution = getattr(profile, 'institution', '') or ''
-        accessibility = settings.get('accessibility', 'public')
+        accessibility = settings.get('accessibility', 'draft')  # default to draft
+        is_published = settings.get('publish', False)  # check if publishing
         passcode = settings.get('passcode', '').strip() if settings.get('requirePasscode') else ''
 
         # Validate passcode if required
@@ -374,14 +596,20 @@ def api_publish_form(request):
             if len(passcode) != 6 or not passcode.isdigit():
                 return JsonResponse({'error': 'Passcode must be exactly 6 digits'}, status=400)
 
-        # Map form builder values to model values
-        privacy_mapping = {
-            'public': 'institution',
-            'department': 'institution_course',
-            'institution': 'institution',
-            'institution_course': 'institution_course'
-        }
-        privacy = privacy_mapping.get(accessibility, 'institution')
+        # Determine privacy based on publish status
+        if not is_published:
+            # If not publishing, save as draft
+            privacy = 'private'
+        else:
+            # Map form builder values to model values for published forms
+            privacy_mapping = {
+                'public': 'institution',
+                'institution': 'institution',
+                'department': 'institution_course',
+                'institution_course': 'institution_course',
+                'draft': 'private'
+            }
+            privacy = privacy_mapping.get(accessibility, 'institution')
 
         form = FormTemplate.objects.create(
             title=title,
@@ -402,3 +630,917 @@ def api_publish_form(request):
         print(f"Error creating form: {str(e)}")
         print(traceback.format_exc())
         return JsonResponse({'error': f'Failed to create form: {str(e)}'}, status=500)
+
+
+@never_cache
+@login_required
+def duplicate_form_api(request, form_id):
+    """API endpoint to duplicate a form"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get the original form
+        original_form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
+        
+        # Create a duplicate
+        duplicate = FormTemplate.objects.create(
+            title=f"{original_form.title} (Copy)",
+            description=original_form.description,
+            course_id=original_form.course_id,
+            institution=original_form.institution,
+            structure=original_form.structure,
+            created_by=profile,
+            privacy='private',  # Always save as draft
+            passcode=None,  # Clear passcode for duplicate
+        )
+        
+        return JsonResponse({'success': True, 'form_id': duplicate.id})
+    
+    except Exception as e:
+        import traceback
+        print(f"Error duplicating form: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def delete_form_api(request, form_id):
+    """API endpoint to delete a form"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get the form
+        form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
+        
+        # Delete the form (this will cascade delete responses and answers)
+        form.delete()
+        
+        return JsonResponse({'success': True})
+    
+    except Exception as e:
+        import traceback
+        print(f"Error deleting form: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def publish_form_api(request, form_id):
+    """API endpoint to publish a draft form"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get the form
+        form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
+        
+        # Publish the form (change from private to institution)
+        if form.privacy == 'private':
+            form.privacy = 'institution'
+            form.save(update_fields=['privacy'])
+            return JsonResponse({'success': True, 'message': 'Form published successfully!'})
+        else:
+            return JsonResponse({'success': False, 'message': 'Form is already published'})
+    
+    except Exception as e:
+        import traceback
+        print(f"Error publishing form: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def unpublish_form_api(request, form_id):
+    """API endpoint to unpublish a form (make it draft)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get the form
+        form = get_object_or_404(FormTemplate, id=form_id, created_by=profile)
+        
+        # Unpublish the form (change to private/draft)
+        if form.privacy != 'private':
+            form.privacy = 'private'
+            form.save(update_fields=['privacy'])
+            return JsonResponse({'success': True, 'message': 'Form moved to drafts'})
+        else:
+            return JsonResponse({'success': False, 'message': 'Form is already a draft'})
+    
+    except Exception as e:
+        import traceback
+        print(f"Error unpublishing form: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def get_form_details_api(request, form_id):
+    """API endpoint to get form details"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get the form with response count
+        from django.db.models import Count
+        form = get_object_or_404(
+            FormTemplate.objects.annotate(response_count=Count('responses')),
+            id=form_id,
+            created_by=profile
+        )
+        
+        # Return form details
+        return JsonResponse({
+            'id': form.id,
+            'title': form.title,
+            'description': form.description,
+            'course_id': form.course_id,
+            'institution': form.institution,
+            'privacy': form.privacy,
+            'structure': form.structure,
+            'created_at': form.created_at.isoformat(),
+            'due_date': form.due_date.isoformat() if form.due_date else None,
+            'response_count': form.response_count,
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"Error getting form details: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+# ========================
+# NEW STUDENT EVALUATION VIEWS
+# ========================
+
+def _save_evaluation_draft(student, form, eval_data):
+    """Helper function to save evaluation progress as draft - OVERWRITES existing draft"""
+    try:
+        team_identifier = eval_data.get('team_identifier', '')
+        
+        # Delete ALL existing drafts for this student and form (not just same team)
+        deleted_count = DraftResponse.objects.filter(
+            student=student,
+            form=form
+        ).delete()
+        print(f"Deleted {deleted_count[0]} existing drafts for this form")
+        
+        # Create single new draft with current progress
+        DraftResponse.objects.create(
+            student=student,
+            form=form,
+            team_identifier=team_identifier,
+            teammate_name='',  # Not specific to one teammate
+            draft_data=eval_data
+        )
+        print(f"Draft saved: {len(eval_data.get('evaluations', []))} evaluations completed")
+    except Exception as e:
+        print(f"Error saving draft: {str(e)}")
+
+
+@never_cache
+@login_required
+def student_eval_team_setup(request, form_id):
+    """Step 1: Team Setup - Student enters team identifier and teammate names"""
+    profile = request.user.profile
+    if profile.account_type != 'student':
+        return HttpResponseForbidden('Access denied')
+
+    form = get_object_or_404(FormTemplate, id=form_id)
+
+    # Check if form is published
+    if form.privacy == 'private':
+        messages.error(request, 'This form is not published yet.')
+        return redirect('student_dashboard')
+
+    # Check privacy/accessibility
+    allowed = False
+    if form.privacy == 'institution' and form.institution == profile.institution:
+        allowed = True
+    elif form.privacy == 'institution_course' and form.institution == profile.institution and form.course_id:
+        allowed = True
+
+    if not allowed:
+        messages.error(request, 'This form is not available for your institution or course.')
+        return redirect('student_dashboard')
+
+    # CRITICAL: Check passcode protection - redirect to entry point if not verified
+    if form.passcode:
+        verified_forms = request.session.get('verified_forms', [])
+        if form.id not in verified_forms:
+            messages.warning(request, 'Please enter the form passcode first.')
+            return redirect('student_form_view', form_id=form.id)
+
+    # Extract settings from form structure (needed for both GET and POST)
+    settings = form.structure.get('settings', {}) if isinstance(form.structure, dict) else {}
+    min_team_size = settings.get('minTeamSize', 2)
+    max_team_size = settings.get('maxTeamSize', 10)
+    
+    # Check if there's existing session data
+    eval_session_key = f'eval_{form_id}'
+    existing_session = request.session.get(eval_session_key, {})
+    
+    # Check if there's a draft - if so, load it and redirect to evaluations
+    if request.method == 'GET' and not request.GET.get('force_edit'):
+        drafts = DraftResponse.objects.filter(student=profile, form=form)
+        if drafts.exists():
+            # Load draft data into session
+            draft = drafts.first()
+            draft_data = draft.draft_data or {}
+            
+            # If draft has team setup data, restore it
+            if 'team_identifier' in draft_data and 'teammate_names' in draft_data:
+                request.session[eval_session_key] = {
+                    'team_identifier': draft_data.get('team_identifier'),
+                    'teammate_names': draft_data.get('teammate_names', []),
+                    'current_index': draft_data.get('current_index', 0),
+                    'evaluations': draft_data.get('evaluations', []),
+                }
+                request.session.modified = True
+                
+                print(f"=== DRAFT LOADED ===")
+                print(f"Team: {draft_data.get('team_identifier')}")
+                print(f"Teammates: {draft_data.get('teammate_names')}")
+                print(f"Current index: {draft_data.get('current_index')}")
+                print(f"Completed evaluations: {len(draft_data.get('evaluations', []))}")
+                
+                # Redirect to evaluations to continue where they left off
+                messages.success(request, 'Resuming your saved progress...')
+                return redirect('student_eval_evaluations', form_id=form.id)
+
+    # Handle POST - save team setup to session
+    if request.method == 'POST':
+        print(f"\n{'='*50}")
+        print(f"=== FORM SUBMIT TRIGGERED ===")
+        print(f"{'='*50}")
+        
+        team_identifier = request.POST.get('team_identifier', '').strip()
+        print(f"Team identifier: '{team_identifier}'")
+        
+        # Get all teammate names from form
+        teammate_names = []
+        for key, value in request.POST.items():
+            if key.startswith('teammate_name_') and value.strip():
+                teammate_names.append(value.strip())
+        
+        print(f"Teammate names found: {teammate_names}")
+        print(f"Number of teammates: {len(teammate_names)}")
+        print(f"Min required: {min_team_size}, Max allowed: {max_team_size}")
+        
+        if not team_identifier:
+            print("ERROR: No team identifier provided!")
+            messages.error(request, 'Team identifier is required.')
+            context = {
+                'form': form,
+                'settings_json': json.dumps(settings)
+            }
+            return render(request, 'EvalMateApp/student_eval_team_setup.html', context)
+        
+        if len(teammate_names) < min_team_size:
+            print(f"ERROR: Too few teammates ({len(teammate_names)} < {min_team_size})")
+            messages.error(request, f'At least {min_team_size} teammates are required.')
+            context = {
+                'form': form,
+                'settings_json': json.dumps(settings)
+            }
+            return render(request, 'EvalMateApp/student_eval_team_setup.html', context)
+        
+        if len(teammate_names) > max_team_size:
+            print(f"ERROR: Too many teammates ({len(teammate_names)} > {max_team_size})")
+            messages.error(request, f'Maximum {max_team_size} teammates allowed.')
+            context = {
+                'form': form,
+                'settings_json': json.dumps(settings)
+            }
+            return render(request, 'EvalMateApp/student_eval_team_setup.html', context)
+        
+        # Store in session - preserve existing evaluations if any
+        request.session[eval_session_key] = {
+            'team_identifier': team_identifier,
+            'teammate_names': teammate_names,
+            'current_index': existing_session.get('current_index', 0),
+            'evaluations': existing_session.get('evaluations', []),
+        }
+        request.session.modified = True
+        
+        print(f"\n=== TEAM SETUP SAVED ===")
+        print(f"Session key: {eval_session_key}")
+        print(f"Team: {team_identifier}")
+        print(f"Teammates: {teammate_names}")
+        print(f"Current index: {request.session[eval_session_key]['current_index']}")
+        print(f"Existing evaluations: {len(request.session[eval_session_key]['evaluations'])}")
+        print(f"Redirecting to: student_eval_evaluations with form_id={form.id}")
+        print(f"{'='*50}\n")
+        
+        # Redirect to evaluations page
+        return redirect('student_eval_evaluations', form_id=form.id)
+    
+    # GET - show team setup form with settings
+    # Pre-fill with existing session data if available
+    context = {
+        'form': form,
+        'settings_json': json.dumps(settings),
+        'team_identifier': existing_session.get('team_identifier', ''),
+        'teammate_names': existing_session.get('teammate_names', []),
+    }
+    return render(request, 'EvalMateApp/student_eval_team_setup.html', context)
+
+
+@never_cache
+@login_required
+def student_eval_evaluations(request, form_id):
+    """Step 2: Evaluations - Student rates each teammate one by one"""
+    print(f"\n=== EVALUATIONS PAGE LOADED ===")
+    print(f"Form ID: {form_id}")
+    
+    profile = request.user.profile
+    if profile.account_type != 'student':
+        return HttpResponseForbidden('Access denied')
+
+    form = get_object_or_404(FormTemplate, id=form_id)
+
+    # Check session data
+    eval_session_key = f'eval_{form_id}'
+    eval_data = request.session.get(eval_session_key)
+    
+    print(f"Session key: {eval_session_key}")
+    print(f"Session data found: {eval_data is not None}")
+    
+    if not eval_data:
+        print("ERROR: No session data, redirecting to team setup")
+        messages.error(request, 'Please complete team setup first.')
+        return redirect('student_eval_team_setup', form_id=form.id)
+    
+    print(f"Team: {eval_data.get('team_identifier')}")
+    print(f"Teammates: {eval_data.get('teammate_names')}")
+    print(f"Current index: {eval_data.get('current_index')}")
+    print(f"Evaluations completed: {len(eval_data.get('evaluations', []))}")
+    
+    teammate_names = eval_data.get('teammate_names', [])
+    current_index = eval_data.get('current_index', 0)
+    evaluations = eval_data.get('evaluations', [])
+    
+    # Check if all teammates are completed
+    completed_teammate_names = [e.get('teammate') for e in evaluations]
+    all_completed = len(completed_teammate_names) >= len(teammate_names)
+    
+    # If index is out of range, find first unevaluated or show completion message
+    if current_index >= len(teammate_names):
+        if all_completed:
+            messages.info(request, 'All teammates have been evaluated. You can edit any evaluation or submit.')
+            # Set to first teammate for review
+            current_index = 0
+            eval_data['current_index'] = 0
+            request.session[eval_session_key] = eval_data
+            request.session.modified = True
+        else:
+            # Find first unevaluated teammate
+            for i, name in enumerate(teammate_names):
+                if name not in completed_teammate_names:
+                    current_index = i
+                    eval_data['current_index'] = i
+                    request.session[eval_session_key] = eval_data
+                    request.session.modified = True
+                    break
+    
+    # Prepare context
+    current_teammate = teammate_names[current_index]
+    
+    # Get completed teammate names
+    completed_teammates = [e.get('teammate') for e in evaluations]
+    
+    # Extract form structure for template access
+    form_structure = form.structure if isinstance(form.structure, dict) else {}
+    sections = form_structure.get('sections', [])
+    
+    # Get current teammate's saved answers if they exist
+    current_teammate_answers = {}
+    is_editing_existing = False
+    for eval_item in evaluations:
+        if eval_item.get('teammate') == current_teammate:
+            current_teammate_answers = eval_item.get('answers', {})
+            is_editing_existing = True
+            break
+    
+    # Calculate actual completion count
+    completed_count = len(evaluations)
+    
+    print(f"Context prepared:")
+    print(f"  Current teammate: {current_teammate}")
+    print(f"  Completed teammates: {completed_teammates}")
+    print(f"  Is editing existing: {is_editing_existing}")
+    print(f"  Completed count: {completed_count}/{len(teammate_names)}")
+    
+    context = {
+        'form': form,
+        'form_structure': form_structure,
+        'sections': sections,
+        'sections_json': json.dumps(sections),  # For JavaScript debugging
+        'teammates': teammate_names,
+        'total_teammates': len(teammate_names),
+        'current_index': current_index,
+        'current_teammate': current_teammate,
+        'completed_teammates': completed_teammates,
+        'team_identifier': eval_data.get('team_identifier'),
+        'evaluations': evaluations,  # Pass all evaluations for navigation
+        'current_answers': current_teammate_answers,  # Pre-fill answers if editing
+        'is_editing_existing': is_editing_existing,  # Flag to show if editing
+        'completed_count': completed_count,  # Actual number of completed evaluations
+    }
+    
+    return render(request, 'EvalMateApp/student_eval_evaluations.html', context)
+
+
+@never_cache
+@login_required
+def student_eval_submit_evaluation(request, form_id):
+    """Submit evaluation for current teammate and move to next or finish"""
+    print("\n" + "="*80)
+    print(f"!!! SUBMIT EVALUATION VIEW CALLED !!!")
+    print(f"Method: {request.method}")
+    print(f"Form ID: {form_id}")
+    print(f"User: {request.user.username}")
+    print("="*80)
+    
+    if request.method != 'POST':
+        print("ERROR: Not a POST request, redirecting to evaluations")
+        return redirect('student_eval_evaluations', form_id=form_id)
+    
+    profile = request.user.profile
+    if profile.account_type != 'student':
+        return HttpResponseForbidden('Access denied')
+
+    form = get_object_or_404(FormTemplate, id=form_id)
+
+    # Get session data
+    eval_session_key = f'eval_{form_id}'
+    eval_data = request.session.get(eval_session_key)
+    
+    print(f"Session key: {eval_session_key}")
+    print(f"Session data exists: {eval_data is not None}")
+    
+    if not eval_data:
+        print("ERROR: No session data found!")
+        messages.error(request, 'Session expired. Please start over.')
+        return redirect('student_eval_team_setup', form_id=form.id)
+    
+    teammate_names = eval_data.get('teammate_names', [])
+    current_index = eval_data.get('current_index', 0)
+    evaluations = eval_data.get('evaluations', [])
+    team_identifier = eval_data.get('team_identifier', 'Unknown Team')
+    
+    if current_index >= len(teammate_names):
+        messages.error(request, 'Invalid evaluation state.')
+        return redirect('student_eval_team_setup', form_id=form.id)
+    
+    current_teammate = teammate_names[current_index]
+    
+    # Collect answers from POST data
+    answers = {}
+    for key, value in request.POST.items():
+        if key.startswith('question_'):
+            # Handle checkbox questions (multiple values)
+            if key in answers:
+                # Already exists, convert to list and append
+                if not isinstance(answers[key], list):
+                    answers[key] = [answers[key]]
+                answers[key].append(value)
+            else:
+                answers[key] = value
+    
+    # Convert lists to comma-separated strings for storage
+    for key, value in answers.items():
+        if isinstance(value, list):
+            answers[key] = ', '.join(value)
+    
+    # Check if this teammate was already evaluated (editing mode)
+    was_already_evaluated = any(e.get('teammate') == current_teammate for e in evaluations)
+    
+    # Remove existing evaluation for this teammate if editing
+    evaluations = [e for e in evaluations if e.get('teammate') != current_teammate]
+    
+    # Store evaluation in session
+    evaluations.append({
+        'teammate': current_teammate,
+        'answers': answers,
+    })
+    
+    eval_data['evaluations'] = evaluations
+    
+    # Check if all teammates evaluated NOW (before updating index)
+    completed_teammate_names = [e.get('teammate') for e in evaluations]
+    all_completed = len(completed_teammate_names) >= len(teammate_names)
+    
+    print(f"Completion check: {len(completed_teammate_names)}/{len(teammate_names)} teammates evaluated")
+    print(f"All completed: {all_completed}")
+    
+    # Update session with new evaluations data
+    request.session[eval_session_key] = eval_data
+    request.session.modified = True
+    
+    # Only update index and save draft if NOT all completed yet
+    if not all_completed:
+        # Only increment index if this was a new evaluation (not editing)
+        # If editing, find the next unevaluated teammate
+        if was_already_evaluated:
+            # Find the next teammate that hasn't been evaluated
+            next_index = current_index
+            for i, name in enumerate(teammate_names):
+                if name not in completed_teammate_names:
+                    next_index = i
+                    break
+            eval_data['current_index'] = next_index
+            print(f"Editing mode: Moving to next unevaluated teammate at index {next_index}")
+        else:
+            # New evaluation: move to next teammate
+            eval_data['current_index'] = current_index + 1
+            print(f"New evaluation: Moving to index {current_index + 1}")
+        
+        # Update session again with new index
+        request.session[eval_session_key] = eval_data
+        request.session.modified = True
+        
+        # Save draft after each evaluation (only if not complete)
+        _save_evaluation_draft(profile, form, eval_data)
+        print(f"Draft saved after evaluating {current_teammate}")
+    else:
+        print(f"All teammates completed! Proceeding to final submission...")
+    
+    # Check if all teammates evaluated
+    if all_completed:
+        # All done - save to database
+        print(f"!!! ENTERING DATABASE SAVE BLOCK - all_completed is True !!!")
+        from django.db import transaction
+        
+        try:
+            with transaction.atomic():
+                # Create FormResponse for the team
+                team_identifier = eval_data.get('team_identifier', 'Unknown Team')
+                
+                print(f"=== SAVING EVALUATIONS ===")
+                print(f"Student: {profile.user.username}")
+                print(f"Form: {form.title} (ID: {form.id})")
+                print(f"Team: {team_identifier}")
+                print(f"Number of evaluations: {len(evaluations)}")
+                
+                # Create a response for each teammate evaluation
+                for idx, evaluation in enumerate(evaluations):
+                    teammate_name = evaluation.get('teammate')
+                    answers_dict = evaluation.get('answers', {})
+                    
+                    print(f"Creating response {idx + 1}/{len(evaluations)} for teammate: {teammate_name}")
+                    
+                    # Create FormResponse
+                    form_response = FormResponse.objects.create(
+                        form=form,
+                        submitted_by=profile,
+                        team_identifier=team_identifier,
+                        teammate_name=teammate_name,
+                        is_draft=False,  # This is a final submission, not a draft
+                    )
+                    
+                    print(f"FormResponse created with ID: {form_response.id}")
+                    
+                    # Create ResponseAnswer for each question
+                    answer_count = 0
+                    for question_key, answer_value in answers_dict.items():
+                        ResponseAnswer.objects.create(
+                            response=form_response,
+                            question=question_key,
+                            answer=answer_value,
+                        )
+                        answer_count += 1
+                    
+                    print(f"Created {answer_count} answers for this response")
+                
+                # Clear session
+                del request.session[eval_session_key]
+                request.session.modified = True
+                print("Session cleared")
+                
+                # Remove from pending evaluations
+                deleted_count = PendingEvaluation.objects.filter(student=profile, form=form).delete()
+                print(f"Removed from pending evaluations: {deleted_count[0]} records deleted")
+                
+                # Delete all drafts for this form/team
+                draft_deleted = DraftResponse.objects.filter(
+                    student=profile, 
+                    form=form,
+                    team_identifier=team_identifier
+                ).delete()
+                print(f"Deleted drafts: {draft_deleted[0]} records")
+                
+                print("=== SUBMISSION COMPLETE ===")
+            
+            messages.success(request, f'✅ All evaluations submitted successfully! You evaluated {len(evaluations)} teammates for "{form.title}".')
+            return redirect('student_dashboard')
+        
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"=== ERROR SAVING EVALUATIONS ===")
+            print(f"Error: {str(e)}")
+            print(error_details)
+            messages.error(request, f'Failed to save evaluations: {str(e)}. Please try again.')
+            return redirect('student_eval_evaluations', form_id=form.id)
+    
+    # More teammates to evaluate - redirect to evaluations page
+    return redirect('student_eval_evaluations', form_id=form.id)
+
+
+# ==================== PENDING EVALUATIONS API ====================
+
+@never_cache
+@login_required
+def api_get_pending_evaluations(request):
+    """Get list of pending evaluations for student"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        from datetime import datetime, timezone
+        
+        pending = PendingEvaluation.objects.filter(student=profile).select_related('form', 'form__created_by')
+        
+        evaluations_list = []
+        for p in pending:
+            # Calculate days left
+            days_left = None
+            due_date = p.form.due_date
+            if due_date:
+                now = datetime.now(timezone.utc)
+                delta = due_date - now
+                days_left = max(0, delta.days)
+            
+            # Get team settings from form structure
+            settings = p.form.structure.get('settings', {}) if isinstance(p.form.structure, dict) else {}
+            min_team_size = settings.get('minTeamSize', 'N/A')
+            max_team_size = settings.get('maxTeamSize', 'N/A')
+            allow_self_eval = settings.get('allowSelfEvaluation', False)
+            
+            # Check if draft exists
+            has_draft = DraftResponse.objects.filter(student=profile, form=p.form).exists()
+            
+            # Determine status
+            if has_draft:
+                status = 'in_progress'
+            elif days_left is not None and days_left <= 3:
+                status = 'urgent'
+            else:
+                status = 'not_started'
+            
+            evaluations_list.append({
+                'id': p.id,
+                'form_id': p.form.id,
+                'title': p.form.title,
+                'description': p.form.description,
+                'course': p.form.course_id,
+                'created_by': p.form.created_by.user.username if p.form.created_by else 'Unknown',
+                'added_at': p.added_at.isoformat(),
+                'days_left': days_left,
+                'due_date': due_date.isoformat() if due_date else None,
+                'status': status,
+                'has_draft': has_draft,
+                'team_settings': {
+                    'min_team_size': min_team_size,
+                    'max_team_size': max_team_size,
+                    'allow_self_evaluation': allow_self_eval
+                }
+            })
+        
+        return JsonResponse({'pending_evaluations': evaluations_list})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+@csrf_exempt
+def api_remove_pending_evaluation(request, pending_id):
+    """Remove a form from pending evaluations"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'DELETE method required'}, status=400)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        pending = get_object_or_404(PendingEvaluation, id=pending_id, student=profile)
+        pending.delete()
+        
+        return JsonResponse({'success': True, 'message': 'Removed from pending evaluations'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_get_evaluation_history(request):
+    """Get list of completed evaluations for student"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get all responses submitted by this student
+        responses = FormResponse.objects.filter(submitted_by=profile).select_related('form').order_by('-submitted_at')
+        
+        # Group by form to show unique forms (not individual teammate responses)
+        seen_forms = set()
+        history_list = []
+        
+        for response in responses:
+            if response.form.id not in seen_forms:
+                seen_forms.add(response.form.id)
+                history_list.append({
+                    'form_id': response.form.id,
+                    'title': response.form.title,
+                    'course': response.form.course_id,
+                    'description': response.form.description,
+                    'submitted_at': response.submitted_at.isoformat(),
+                    'team_identifier': response.team_identifier or 'N/A',
+                })
+        
+        return JsonResponse({'history': history_list})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+@csrf_exempt
+def api_save_draft(request):
+    """Save draft response for evaluation in progress"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        data = json.loads(request.body)
+        form_id = data.get('form_id')
+        draft_data = data.get('draft_data', {})
+        team_identifier = data.get('team_identifier', '')
+        teammate_name = data.get('teammate_name', '')
+        
+        if not form_id:
+            return JsonResponse({'error': 'form_id required'}, status=400)
+        
+        form = get_object_or_404(FormTemplate, id=form_id)
+        
+        # Create or update draft
+        draft, created = DraftResponse.objects.update_or_create(
+            student=profile,
+            form=form,
+            team_identifier=team_identifier,
+            teammate_name=teammate_name,
+            defaults={'draft_data': draft_data}
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Draft saved successfully',
+            'draft_id': draft.id,
+            'last_saved': draft.last_saved.isoformat()
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_get_draft(request, form_id):
+    """Get saved draft for a specific form"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        team_identifier = request.GET.get('team_identifier', '')
+        teammate_name = request.GET.get('teammate_name', '')
+        
+        # Get draft
+        draft = DraftResponse.objects.filter(
+            student=profile,
+            form_id=form_id,
+            team_identifier=team_identifier,
+            teammate_name=teammate_name
+        ).first()
+        
+        if draft:
+            return JsonResponse({
+                'has_draft': True,
+                'draft_data': draft.draft_data,
+                'last_saved': draft.last_saved.isoformat()
+            })
+        else:
+            return JsonResponse({'has_draft': False})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+@csrf_exempt
+def api_delete_draft(request, form_id):
+    """Delete saved draft"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'DELETE method required'}, status=400)
+    
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        data = json.loads(request.body) if request.body else {}
+        team_identifier = data.get('team_identifier', '')
+        teammate_name = data.get('teammate_name', '')
+        
+        # Delete draft
+        DraftResponse.objects.filter(
+            student=profile,
+            form_id=form_id,
+            team_identifier=team_identifier,
+            teammate_name=teammate_name
+        ).delete()
+        
+        return JsonResponse({'success': True, 'message': 'Draft deleted successfully'})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def student_eval_navigate_teammate(request, form_id, teammate_index):
+    """Navigate to a specific teammate's evaluation (for editing)"""
+    profile = request.user.profile
+    if profile.account_type != 'student':
+        return HttpResponseForbidden('Access denied')
+
+    form = get_object_or_404(FormTemplate, id=form_id)
+
+    # Get session data
+    eval_session_key = f'eval_{form_id}'
+    eval_data = request.session.get(eval_session_key)
+    
+    if not eval_data:
+        messages.error(request, 'Session expired. Please start over.')
+        return redirect('student_eval_team_setup', form_id=form.id)
+    
+    teammate_names = eval_data.get('teammate_names', [])
+    
+    # Validate index
+    if teammate_index < 0 or teammate_index >= len(teammate_names):
+        messages.error(request, 'Invalid teammate index.')
+        return redirect('student_eval_evaluations', form_id=form.id)
+    
+    # Update current index
+    eval_data['current_index'] = teammate_index
+    request.session[eval_session_key] = eval_data
+    request.session.modified = True
+    
+    # Save draft with new position
+    _save_evaluation_draft(profile, form, eval_data)
+    
+    return redirect('student_eval_evaluations', form_id=form.id)

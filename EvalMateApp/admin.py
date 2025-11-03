@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Profile, FormTemplate, FormResponse, ResponseAnswer
+from .models import Profile, FormTemplate, FormResponse, ResponseAnswer, PendingEvaluation, DraftResponse
 
 
 @admin.register(Profile)
@@ -22,3 +22,14 @@ class FormResponseAdmin(admin.ModelAdmin):
 @admin.register(ResponseAnswer)
 class ResponseAnswerAdmin(admin.ModelAdmin):
 	list_display = ('response', 'question')
+
+
+@admin.register(PendingEvaluation)
+class PendingEvaluationAdmin(admin.ModelAdmin):
+	list_display = ('student', 'form', 'added_at', 'status')
+
+
+@admin.register(DraftResponse)
+class DraftResponseAdmin(admin.ModelAdmin):
+	list_display = ('student', 'form', 'teammate_name', 'last_saved')
+	search_fields = ('student__user__username', 'form__title')

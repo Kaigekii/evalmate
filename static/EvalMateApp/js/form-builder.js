@@ -1204,6 +1204,23 @@ class FormBuilder {
 }
 
 // Initialize Form Builder
-document.addEventListener('DOMContentLoaded', () => {
+function initFormBuilder() {
+    if (window.formBuilder) {
+        // Clean up existing instance if any
+        window.formBuilder = null;
+    }
     window.formBuilder = new FormBuilder();
+}
+
+// Auto-initialize on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    initFormBuilder();
 });
+
+// Also initialize immediately if DOM is already ready (for SPA navigation)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFormBuilder);
+} else {
+    // DOM already loaded (SPA navigation), initialize now
+    initFormBuilder();
+}

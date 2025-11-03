@@ -5,6 +5,8 @@ urlpatterns = [
     path('', views.home_view, name='home'),
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
+    path('verify-code/', views.verify_code_view, name='verify_code'),
+    path('resend-code/', views.resend_code_view, name='resend_code'),
     path('logout/', views.logout_view, name='logout'),
     
     # Student Dashboard Routes (SPA)

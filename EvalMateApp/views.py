@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -10,6 +11,9 @@ from django.utils import timezone
 from django.db.models import Q
 from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_exempt
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings
 
 from .models import FormTemplate, FormResponse, ResponseAnswer, Profile, PendingEvaluation, DraftResponse
 
@@ -76,32 +80,245 @@ def register_view(request):
     if request.method == 'POST':
         user_form = UserRegisterForm(request.POST)
         profile_form = ProfileForm(request.POST)
+        
+        # Check if request is AJAX
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         if user_form.is_valid() and profile_form.is_valid():
             try:
-                user = user_form.save()
+                print(f"\n=== REGISTER VIEW: Creating User ===")
+                # Create user
+                user = user_form.save(commit=False)
+                user.email = profile_form.cleaned_data['email']
+                user.is_active = True
+                user.save()
+                print(f"✓ User created: {user.username}")
+                
+                # Create profile
                 profile = profile_form.save(commit=False)
                 profile.user = user
+                profile.email_verified = False
+                
+                # Generate 6-digit verification code
+                verification_code = profile.generate_verification_code()
                 profile.save()
+                print(f"✓ Profile created with code: {verification_code}")
                 
-                # Log the user in
-                login(request, user)
+                # Send verification email with code
+                print(f"→ Calling send_verification_code_email...")
+                send_verification_code_email(request, user, profile, verification_code)
+                print(f"✓ Email function returned successfully")
                 
-                # Redirect based on account type
-                if profile.account_type == 'student':
-                    return redirect('student_dashboard')
-                elif profile.account_type == 'faculty':
-                    return redirect('faculty_dashboard')
+                # Store user ID in session for verification
+                request.session['pending_verification_user_id'] = user.id
+                
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Account created! Verification code sent to {profile.email}',
+                        'email': profile.email,
+                        'user_id': user.id
+                    })
                 else:
-                    return redirect('home')
+                    messages.success(request, f'Account created! Verification code sent to {profile.email}')
+                    return redirect('email_verification_sent')
                     
             except Exception as e:
-                messages.error(request, 'Unable to create account. Please try again.')
+                if user.id:
+                    user.delete()  # Rollback if something fails
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'Failed to create account: {str(e)}'
+                    }, status=400)
+                else:
+                    messages.error(request, f'Failed to create account: {str(e)}')
+                    return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
         else:
-            messages.error(request, 'Please correct the errors in the form.')
+            # Show specific form errors
+            errors = {}
+            error_messages = []
+            
+            if user_form.errors:
+                for field, error_list in user_form.errors.items():
+                    errors[field] = [str(e) for e in error_list]
+                    error_messages.extend([str(e) for e in error_list])
+                    
+            if profile_form.errors:
+                for field, error_list in profile_form.errors.items():
+                    errors[field] = [str(e) for e in error_list]
+                    error_messages.extend([str(e) for e in error_list])
+            
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'message': '; '.join(error_messages) if error_messages else 'Please fix the errors in the form.',
+                    'errors': errors
+                }, status=400)
+            else:
+                for msg in error_messages:
+                    messages.error(request, msg)
+                return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
     else:
         user_form = UserRegisterForm()
         profile_form = ProfileForm()
     return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
+
+
+def send_verification_code_email(request, user, profile, code):
+    """Send 6-digit verification code to user's email"""
+    print(f"\n=== ATTEMPTING TO SEND EMAIL ===")
+    print(f"Recipient: {profile.email}")
+    print(f"Code: {code}")
+    print(f"From: {settings.DEFAULT_FROM_EMAIL}")
+    
+    subject = 'Verify Your EvalMate Account - Verification Code'
+    html_message = render_to_string('EvalMateApp/emails/verification_code_email.html', {
+        'user': user,
+        'profile': profile,
+        'verification_code': code,
+    })
+    plain_message = f"""
+Hello {profile.first_name} {profile.last_name},
+
+Welcome to EvalMate! Your verification code is:
+
+{code}
+
+This code will expire in 15 minutes.
+
+If you didn't create this account, please ignore this email.
+
+Thank you,
+EvalMate Team
+"""
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[profile.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        print(f"✓ EMAIL SENT SUCCESSFULLY to {profile.email}")
+    except Exception as e:
+        print(f"✗ EMAIL SEND FAILED: {str(e)}")
+        raise
+
+
+def verify_code_view(request):
+    """AJAX endpoint to verify the 6-digit code"""
+    if request.method == 'POST':
+        try:
+            # Get code from POST data
+            code = request.POST.get('code', '').strip()
+            
+            # Get user_id from session
+            user_id = request.session.get('pending_verification_user_id')
+            
+            if not user_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Session expired. Please register again.'
+                }, status=400)
+            
+            user = User.objects.get(id=user_id)
+            profile = user.profile
+            
+            # Check if code matches and is still valid
+            if profile.verification_code == code:
+                if profile.is_verification_code_valid():
+                    # Mark as verified and log user in
+                    profile.email_verified = True
+                    profile.verification_code = None  # Clear the code
+                    profile.save()
+                    
+                    # Log the user in automatically
+                    login(request, user)
+                    
+                    # Clear session
+                    if 'pending_verification_user_id' in request.session:
+                        del request.session['pending_verification_user_id']
+                    
+                    # Determine redirect URL based on account type
+                    if profile.account_type == 'student':
+                        redirect_url = '/dashboard/student/'
+                    else:  # faculty
+                        redirect_url = '/dashboard/faculty/'
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Email verified successfully!',
+                        'redirect': redirect_url
+                    })
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Verification code has expired. Please request a new one.'
+                    }, status=400)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid code. Please try again.'
+                }, status=400)
+                
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'User not found. Please register again.'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'An error occurred: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
+
+def resend_code_view(request):
+    """AJAX endpoint to resend verification code"""
+    if request.method == 'POST':
+        try:
+            # Get user_id from session
+            user_id = request.session.get('pending_verification_user_id')
+            
+            if not user_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Session expired. Please register again.'
+                }, status=400)
+            
+            user = User.objects.get(id=user_id)
+            profile = user.profile
+            
+            # Generate new code
+            new_code = profile.generate_verification_code()
+            profile.save()
+            
+            # Send new email
+            send_verification_code_email(request, user, profile, new_code)
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'New verification code sent to {profile.email}'
+            })
+            
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'User not found. Please register again.'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'An error occurred: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
 
 def logout_view(request):
     # Clear all messages before logout

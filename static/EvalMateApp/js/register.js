@@ -398,9 +398,39 @@ function handleRegister(event) {
             'X-CSRFToken': getCookie('csrftoken')
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // First, get the response as text
+        return response.text().then(text => {
+            // Check if it's JSON
+            const contentType = response.headers.get('content-type');
+            console.log('Response status:', response.status);
+            console.log('Content-Type:', contentType);
+            console.log('Response text preview:', text.substring(0, 200));
+            
+            if (!response.ok) {
+                console.error('Server returned error:', text);
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            // Check if response is HTML (error page)
+            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                console.error('Received HTML instead of JSON:', text.substring(0, 500));
+                throw new Error('Server returned HTML instead of JSON. Check server console for errors.');
+            }
+            
+            // Try to parse as JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Failed to parse JSON:', text);
+                throw new Error('Invalid JSON response from server');
+            }
+        });
+    })
     .then(data => {
+        console.log('Registration response data:', data);
         if (data.success) {
+            console.log('Success! Calling showVerificationModal with:', formData.email, data.user_id);
             // Show verification modal
             showVerificationModal(formData.email, data.user_id);
         } else {
@@ -428,8 +458,12 @@ function handleRegister(event) {
 
 // Show verification modal
 function showVerificationModal(email, userId) {
+    console.log('showVerificationModal called with:', email, userId);
     const modal = document.getElementById('verificationModal');
     const userEmailEl = document.getElementById('userEmail');
+    
+    console.log('Modal element:', modal);
+    console.log('userEmailEl element:', userEmailEl);
     
     if (modal && userEmailEl) {
         userEmailEl.textContent = email;

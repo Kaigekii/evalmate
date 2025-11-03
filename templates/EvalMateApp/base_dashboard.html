@@ -6,6 +6,11 @@
     <title>{% block title %}EvalMate - Faculty Dashboard{% endblock %}</title>
     {% load static %}
     
+    <!-- Preload critical resources for instant navigation -->
+    <link rel="prefetch" href="{% static 'EvalMateApp/css/form-builder.css' %}" as="style">
+    <link rel="prefetch" href="{% static 'EvalMateApp/css/reports.css' %}" as="style">
+    <link rel="prefetch" href="{% static 'EvalMateApp/js/form-builder.js' %}" as="script">
+    
     <!-- Common Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,8 +24,25 @@
     
     <!-- Page-specific CSS -->
     {% block extra_css %}{% endblock %}
+    
+    <style>
+        /* Ultra-fast loading bar */
+        .spa-loading-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #715A5A, #8A7070);
+            z-index: 9999;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
 </head>
 <body>
+    <!-- Ultra-fast loading indicator -->
+    <div class="spa-loading-bar" id="spaLoadingBar"></div>
+    
     <!-- Main Container -->
     <div class="dashboard">
         <!-- Sidebar - Global and Persistent -->
@@ -40,10 +62,6 @@
                     <a href="{% url 'faculty_dashboard' %}" class="sidebar__link {% if request.resolver_match.url_name == 'faculty_dashboard' %}sidebar__link--active{% endif %}">
                         <i class="fas fa-th-large"></i>
                         <span>Overview</span>
-                    </a>
-                    <a href="/dashboard/faculty/analytics/" class="sidebar__link">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Analytics</span>
                     </a>
                 </nav>
             </div>
@@ -87,5 +105,28 @@
     
     <!-- Page-specific Scripts -->
     {% block extra_js %}{% endblock %}
+    
+    <!-- Security: Prevent accessing page after logout -->
+    <script>
+        // Disable cache for authenticated pages
+        (function() {
+            // Prevent page from being cached
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    // Page was loaded from cache (user pressed back button)
+                    window.location.reload();
+                }
+            });
+            
+            // Check authentication status on page load
+            fetch(window.location.href, {
+                method: 'HEAD',
+                cache: 'no-store'
+            }).catch(function() {
+                // If fetch fails, redirect to login
+                window.location.href = '/login/';
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -13,15 +13,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import environ
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent  # This is EvalMate/
+# Project root directory (where manage.py is located)
+PROJECT_ROOT = BASE_DIR.parent  # This is evalmate/
 
 # Initialize environment variables
 env = environ.Env()
-env_file = BASE_DIR.parent / '.env'
-environ.Env.read_env(env_file)
+environ.Env.read_env(PROJECT_ROOT / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -30,10 +30,9 @@ environ.Env.read_env(env_file)
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
+DEBUG = env.bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '*.onrender.com'])
-CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '*'])
 
 
 # Application definition
@@ -64,7 +63,7 @@ ROOT_URLCONF = 'EvalMate.EvalMate.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR.parent / 'templates'],
+        'DIRS': [PROJECT_ROOT / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -82,18 +81,30 @@ WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Supabase PostgreSQL - ENABLED
 DATABASES = {
-    "default": dj_database_url.parse(
-        env('DATABASE_URL', default='sqlite:///db.sqlite3'),
-        conn_max_age=600
-    )   
+    'default': {
+        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': env('DATABASE_NAME', default='postgres'),
+        'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
+        'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
+        'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
+        'PORT': env('DATABASE_PORT', default='5432'),
+        'OPTIONS': {
+            'sslmode': env('DATABASE_SSLMODE', default='require'),
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
+        },
+    }
 }
 
 # SQLite for local development - DISABLED
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR.parent / 'db.sqlite3',
+#         'NAME': PROJECT_ROOT / 'db.sqlite3',
 #     }
 # }
 
@@ -102,15 +113,11 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    # Disabled: Too strict for user registration
-    # {
-    #     'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    # },
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 8,
-        }
     },
     # {
     #     'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -139,11 +146,11 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    str(BASE_DIR.parent / 'static'),
+    PROJECT_ROOT / 'static',
 ]
 
 # Static files storage for production
-STATIC_ROOT = BASE_DIR.parent / 'staticfiles'
+STATIC_ROOT = PROJECT_ROOT / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
@@ -151,14 +158,30 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Email Configuration
-EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+# Caching Configuration - Only for session data, not for pages
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'evalmate-cache',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
 
-# Site URL for email verification links
-SITE_URL = env('SITE_URL', default='http://127.0.0.1:8000')
+# Session optimization - use database + cache
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+SESSION_CACHE_ALIAS = 'default'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+
+# Security settings for preventing cache issues after logout
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Authentication settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/faculty/'
+LOGOUT_REDIRECT_URL = '/login/'

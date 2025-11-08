@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,9 @@ from .models import FormTemplate, FormResponse, ResponseAnswer, Profile, Pending
 
 import json
 import time
+import random
+import string
+import threading
 
 
 def home_view(request):
@@ -94,8 +98,6 @@ def register_view(request):
                 profile.email_verified = False  # Start as unverified
                 
                 # Generate verification code
-                import random
-                import string
                 verification_code = ''.join(random.choices(string.digits, k=6))
                 profile.verification_code = verification_code
                 profile.verification_code_created = timezone.now()
@@ -104,7 +106,6 @@ def register_view(request):
                 # Send verification email asynchronously (non-blocking)
                 from django.core.mail import send_mail
                 from django.conf import settings
-                import threading
                 
                 def send_verification_email():
                     try:
@@ -128,14 +129,13 @@ def register_view(request):
                 
                 # Determine redirect URL based on account type
                 if profile.account_type == 'student':
-                    redirect_url = '/student/'
+                    redirect_url = '/dashboard/student/'
                 elif profile.account_type == 'faculty':
-                    redirect_url = '/faculty/'
+                    redirect_url = '/dashboard/faculty/'
                 else:
                     redirect_url = '/'
                 
                 if is_ajax:
-                    from django.http import JsonResponse
                     return JsonResponse({
                         'success': True,
                         'user_id': user.id,
@@ -148,7 +148,6 @@ def register_view(request):
                 print(f"Registration error: {str(e)}")  # Log the actual error
                 error_msg = f'Unable to create account: {str(e)}'
                 if is_ajax:
-                    from django.http import JsonResponse
                     return JsonResponse({
                         'success': False,
                         'message': error_msg
@@ -170,7 +169,6 @@ def register_view(request):
             error_msg = ' '.join(errors) if errors else 'Please correct the errors in the form.'
             
             if is_ajax:
-                from django.http import JsonResponse
                 return JsonResponse({
                     'success': False,
                     'message': error_msg,
@@ -270,8 +268,6 @@ def resend_code_view(request):
             profile = request.user.profile
             
             # Generate new verification code
-            import random
-            import string
             verification_code = ''.join(random.choices(string.digits, k=6))
             profile.verification_code = verification_code
             profile.verification_code_created = timezone.now()
@@ -280,7 +276,6 @@ def resend_code_view(request):
             # Send email in background thread
             from django.core.mail import send_mail
             from django.conf import settings
-            import threading
             
             def send_verification_email():
                 try:

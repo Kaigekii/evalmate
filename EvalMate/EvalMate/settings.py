@@ -30,9 +30,14 @@ environ.Env.read_env(PROJECT_ROOT / '.env')
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=True)
+DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '*'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+
+# Add render.com domain if provided
+RENDER_EXTERNAL_HOSTNAME = env('RENDER_EXTERNAL_HOSTNAME', default=None)
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
 # Application definition
@@ -81,24 +86,35 @@ WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Supabase PostgreSQL - ENABLED
-DATABASES = {
-    'default': {
-        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': env('DATABASE_NAME', default='postgres'),
-        'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
-        'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
-        'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
-        'PORT': env('DATABASE_PORT', default='5432'),
-        'OPTIONS': {
-            'sslmode': env('DATABASE_SSLMODE', default='require'),
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-        },
+import dj_database_url
+
+# Use DATABASE_URL if provided (for production/deployment), otherwise use individual env vars
+DATABASE_URL = env('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # Production: Parse DATABASE_URL (Supabase connection string from Render environment)
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    # Development & Production: Use Supabase PostgreSQL with individual environment variables
+    DATABASES = {
+        'default': {
+            'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
+            'NAME': env('DATABASE_NAME', default='postgres'),
+            'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
+            'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
+            'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
+            'PORT': env('DATABASE_PORT', default='5432'),
+            'OPTIONS': {
+                'sslmode': env('DATABASE_SSLMODE', default='require'),
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5,
+            },
+        }
+    }
 
 # SQLite for local development - DISABLED
 # DATABASES = {
@@ -174,12 +190,14 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SECURE = not DEBUG  # True in production with HTTPS
 
-# Security settings for preventing cache issues after logout
+# Security settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG  # Redirect HTTP to HTTPS in production
 
 # Authentication settings
 LOGIN_URL = '/login/'

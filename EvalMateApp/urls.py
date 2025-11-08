@@ -8,6 +8,8 @@ urlpatterns = [
     path('verify-code/', views.verify_code_view, name='verify_code'),
     path('resend-code/', views.resend_code_view, name='resend_code'),
     path('logout/', views.logout_view, name='logout'),
+    path('verify-code/', views.verify_code_view, name='verify_code'),
+    path('resend-code/', views.resend_code_view, name='resend_code'),
     
     # Student Dashboard Routes (SPA)
     path('dashboard/student/', views.student_dashboard_view, name='student_dashboard'),

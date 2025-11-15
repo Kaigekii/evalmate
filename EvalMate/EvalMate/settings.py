@@ -147,7 +147,7 @@ STATICFILES_DIRS = [
 ]
 
 # Static files storage for production
-STATIC_ROOT = PROJECT_ROOT / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Security (production)

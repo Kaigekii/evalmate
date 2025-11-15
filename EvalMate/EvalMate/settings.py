@@ -143,11 +143,11 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    PROJECT_ROOT / 'static',
 ]
 
 # Static files storage for production
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = PROJECT_ROOT / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Security (production)

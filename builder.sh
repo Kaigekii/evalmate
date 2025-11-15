@@ -11,4 +11,4 @@ python manage.py collectstatic --noinput
 echo "==> Build complete"
 
 # Set Django settings module for gunicorn
-export DJANGO_SETTINGS_MODULE=EvalMate.EvalMate.settings
+export DJANGO_SETTINGS_MODULE=EvalMate.settings

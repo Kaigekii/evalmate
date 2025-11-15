@@ -20,7 +20,7 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent  # This is EvalMate/
 # Project root directory (where manage.py is located)
-PROJECT_ROOT = BASE_DIR.parent # This is evalmate/
+PROJECT_ROOT = BASE_DIR # This is evalmate/
 
 # Load .env in local dev only
 if os.environ.get("RENDER", "") != "true":
@@ -63,7 +63,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'EvalMate.EvalMate.urls'
+ROOT_URLCONF = 'EvalMate.urls'
 
 TEMPLATES = [
     {
@@ -80,7 +80,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
+WSGI_APPLICATION = 'EvalMate.wsgi.application'
 
 
 # Database

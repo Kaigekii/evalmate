@@ -143,7 +143,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    PROJECT_ROOT / 'static',
+    BASE_DIR / 'static',
 ]
 
 # Static files storage for production

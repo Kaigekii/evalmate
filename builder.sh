@@ -1,30 +1,14 @@
-#!/bin/bash
-
-# Exit on any error
-set -e
-
-echo "Starting Django deployment build..."
-
-# Install dependencies
-echo "Installing Python dependencies..."
+#!/usr/bin/env bash
+set -euo pipefail
+echo "==> Installing dependencies"
+pip install --upgrade pip # this is optional
 pip install -r requirements.txt
-
-# Run database migrations
-echo "Running database migrations..."
-python manage.py migrate
-
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --clear --noinput
-
-# Run any additional build steps here
-echo "Build completed successfully!"
-
-# Optional: Run tests before deployment
-# echo "Running tests..."
-# python manage.py test
-
-echo "Ready for deployment."
+echo "==> Running database migrations"
+python manage.py makemigrations
+python manage.py migrate --noinput
+echo "==> Collecting static files"
+python manage.py collectstatic --noinput
+echo "==> Build complete"
 
 # Set Django settings module for gunicorn
-export DJANGO_SETTINGS_MODULE=EvalMate.EvalMate.settings
+export DJANGO_SETTINGS_MODULE=EvalMate.settings

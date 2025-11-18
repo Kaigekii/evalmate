@@ -67,12 +67,27 @@ class FormBuilder {
             this.saveDraft();
         });
 
-        // Add section button
-        this.addSectionBtn.addEventListener('click', () => this.addSection());
+        // Add section button - prevent double-click
+        if (this.addSectionBtn && !this.addSectionBtn.dataset.listenerAdded) {
+            this.addSectionBtn.dataset.listenerAdded = 'true';
+            this.addSectionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addSection();
+            }, { once: false });
+        }
 
-        // Tab navigation
+        // Tab navigation - ensure all tabs work
         this.tabs.forEach(tab => {
-            tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+            if (!tab.dataset.listenerAdded) {
+                tab.dataset.listenerAdded = 'true';
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Tab clicked:', tab.dataset.tab);
+                    this.switchTab(tab.dataset.tab);
+                });
+            }
         });
 
         // Save and publish buttons

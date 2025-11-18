@@ -11,13 +11,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import urlparse
+from dotenv import load_dotenv
 import os
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent  # This is EvalMate/
 # Project root directory (where manage.py is located)
-PROJECT_ROOT = BASE_DIR.parent  # This is evalmate/
+PROJECT_ROOT = BASE_DIR # This is evalmate/
+
+# Load .env in local dev only
+if os.environ.get("RENDER", "") != "true":
+    load_dotenv()
 
 # Initialize environment variables
 env = environ.Env()
@@ -26,13 +33,11 @@ environ.Env.read_env(PROJECT_ROOT / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-j1h1gdft0^9!z6cs!%l=9s#+h)gr9dg-booha9lr)^d1#^y@)o')
+SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-key")
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=True)
-
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '*'])
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 
 # Application definition
@@ -58,7 +63,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'EvalMate.EvalMate.urls'
+ROOT_URLCONF = 'EvalMate.urls'
 
 TEMPLATES = [
     {
@@ -75,29 +80,21 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'EvalMate.EvalMate.wsgi.application'
+WSGI_APPLICATION = 'EvalMate.wsgi.application'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Supabase PostgreSQL - ENABLED
+# Database (Supabase URL with sslmode=require)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 DATABASES = {
-    'default': {
-        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': env('DATABASE_NAME', default='postgres'),
-        'USER': env('DATABASE_USER', default='postgres.quifctsbspsveatadpln'),
-        'PASSWORD': env('DATABASE_PASSWORD', default='m0CBnUSNt9yF0oZj'),
-        'HOST': env('DATABASE_HOST', default='aws-1-us-east-2.pooler.supabase.com'),
-        'PORT': env('DATABASE_PORT', default='5432'),
-        'OPTIONS': {
-            'sslmode': env('DATABASE_SSLMODE', default='require'),
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-        },
-    }
+    "default": dj_database_url.config(
+    default=DATABASE_URL,
+    conn_max_age=600,
+    ssl_require=True
+    )
 }
 
 # SQLite for local development - DISABLED
@@ -152,6 +149,12 @@ STATICFILES_DIRS = [
 # Static files storage for production
 STATIC_ROOT = PROJECT_ROOT / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Security (production)
+if os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True").lower() == "true":
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -1000,3 +1000,227 @@
         gap: var(--spacing-sm);
     }
 }
+
+/* ============================================================================
+   Response Detail Page Styles (extracted from reports_response_detail.html)
+   ============================================================================ */
+
+.responses-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.response-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.response-number {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    background: #37353E;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.response-content {
+    flex: 1;
+}
+
+.response-question {
+    font-size: 1.1rem;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.required-mark {
+    color: #dc2626;
+    margin-left: 4px;
+}
+
+.response-description {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.response-answer {
+    margin-top: 1rem;
+}
+
+/* Rating */
+.rating-display {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.rating-box {
+    flex: 1;
+    min-width: 90px;
+    padding: 1rem;
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.rating-box-selected {
+    background: linear-gradient(135deg, #37353E, #37353E);
+    color: white;
+    border-color: #37353E;
+    box-shadow: 0 4px 12px rgba(55, 53, 62, 0.3);
+    transform: scale(1.05);
+}
+
+.rating-num {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.rating-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Text */
+.text-answer {
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    border-left: 4px solid #37353E;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Multiple/Checkbox */
+.multiple-display, .checkbox-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.option-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.option-selected {
+    background: linear-gradient(135deg, #37353E, #37353E);
+    color: white;
+    border-color: #37353E;
+    font-weight: 600;
+}
+
+.radio-circle, .check-square {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #d1d5db;
+    background: white;
+    flex-shrink: 0;
+}
+
+.radio-circle {
+    border-radius: 50%;
+}
+
+.check-square {
+    border-radius: 4px;
+}
+
+.option-selected .radio-circle::after {
+    content: '';
+    display: block;
+    width: 10px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+    margin: 3px;
+}
+
+.option-selected .check-square::after {
+    content: '✓';
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Slider */
+.slider-display {
+    padding: 1rem 0;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.slider-bar {
+    position: relative;
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.slider-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #37353E, #37353E);
+    border-radius: 4px;
+}
+
+.slider-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 3px solid #37353E;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.slider-val {
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #37353E;
+}
+
+.simple-answer {
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+

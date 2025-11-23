@@ -147,3 +147,11 @@ label {
     color: var(--color-primary);
     margin-bottom: 1rem;
 }
+
+.form-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}

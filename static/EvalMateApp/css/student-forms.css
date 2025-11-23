@@ -188,3 +188,8 @@ label {
     outline: none;
     border-color: var(--color-accent);
 }
+
+textarea.form-input {
+    min-height: 100px;
+    resize: vertical;
+}

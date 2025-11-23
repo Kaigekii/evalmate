@@ -193,3 +193,9 @@ textarea.form-input {
     min-height: 100px;
     resize: vertical;
 }
+
+.student-form-wrap .btn-group {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}

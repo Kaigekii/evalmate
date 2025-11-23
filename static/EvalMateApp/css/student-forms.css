@@ -71,3 +71,15 @@ label {
 .btn-group .btn {
     flex: 1;
 }
+
+/* Success Page */
+.success-container {
+    background: white;
+    border-radius: 16px;
+    padding: 4rem 3rem;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    animation: scaleIn 0.4s ease-out;
+}

@@ -22,3 +22,14 @@ body {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     animation: scaleIn 0.4s ease-out;
 }
+
+.form-passcode-wrap h1 {
+    font-family: 'Poppins', sans-serif;
+    color: var(--color-primary);
+    margin-bottom: 1rem;
+}
+
+.form-passcode-wrap p {
+    color: var(--color-text-secondary);
+    margin-bottom: 2rem;
+}

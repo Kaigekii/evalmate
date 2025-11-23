@@ -174,3 +174,12 @@ label {
     color: var(--color-text);
     margin-bottom: 0.5rem;
 }
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 0.875rem;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}

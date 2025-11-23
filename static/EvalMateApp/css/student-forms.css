@@ -83,3 +83,20 @@ label {
     text-align: center;
     animation: scaleIn 0.4s ease-out;
 }
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    animation: scaleIn 0.6s ease-out;
+}
+
+.success-icon i {
+    color: white;
+    font-size: 2.5rem;
+}

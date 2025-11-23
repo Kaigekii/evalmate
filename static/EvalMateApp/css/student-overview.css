@@ -9,10 +9,10 @@
     /* Colors - New Theme */
     --color-primary: #37353E;
     --color-secondary: #44444E;
-    --color-accent: #715A5A;
+    --color-accent: #37353E;
     --color-accent-light: #D3DAD9;
     --color-text-primary: #37353E;
-    --color-text-secondary: #715A5A;
+    --color-text-secondary: #37353E;
     --color-text-light: #BDC3C7;
     --color-background: #F5F5F5;
     --color-white: #FFFFFF;
@@ -1442,7 +1442,7 @@ body {
     width: 60px;
     height: 60px;
     margin: 0 auto 1.5rem;
-    background: linear-gradient(135deg, #715A5A, #5a4545);
+    background: linear-gradient(135deg, #37353E, #37353E);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1494,7 +1494,7 @@ body {
 }
 
 .btn-modal--confirm {
-    background: linear-gradient(135deg, #715A5A, #5a4545);
+    background: linear-gradient(135deg, #37353E, #37353E);
     color: white;
 }
 

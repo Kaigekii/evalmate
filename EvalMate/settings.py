@@ -34,7 +34,9 @@ environ.Env.read_env(PROJECT_ROOT / '.env')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-key")
-DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+DEBUG = env.bool("DEBUG", default=os.environ.get("RENDER", "").lower() != "true")
+IS_RENDER = os.environ.get("RENDER", "").lower() == "true"
+
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
@@ -87,15 +89,25 @@ WSGI_APPLICATION = 'EvalMate.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Supabase PostgreSQL - ENABLED
-# Database (Supabase URL with sslmode=require)
+# Database (Supabase URL with connection pooling)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 DATABASES = {
     "default": dj_database_url.config(
-    default=DATABASE_URL,
-    conn_max_age=600,
-    ssl_require=True
+        default=DATABASE_URL,
+        conn_max_age=0,  # Don't persist connections (important for pooling)
+        conn_health_checks=True,
+        ssl_require=False,
     )
 }
+
+# Additional connection pooling settings for Supabase
+if DATABASE_URL:
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 10,
+        'options': '-c statement_timeout=30000',  # 30 second query timeout
+    }
+    # Limit connection pool size
+    DATABASES['default']['CONN_MAX_AGE'] = 0  # Close connections immediately after use
 
 # SQLite for local development - DISABLED
 # DATABASES = {
@@ -150,11 +162,18 @@ STATICFILES_DIRS = [
 STATIC_ROOT = PROJECT_ROOT / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Security (production)
-if os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True").lower() == "true":
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+# Security (runtime specific)
+SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=IS_RENDER)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=IS_RENDER)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=IS_RENDER)
+
+if IS_RENDER:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
+else:
+    SECURE_HSTS_SECONDS = 0
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -177,7 +196,6 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 
 # Security settings for preventing cache issues after logout
 SECURE_BROWSER_XSS_FILTER = True

@@ -7,8 +7,8 @@
 :root {
     --color-primary: #37353E;
     --color-secondary: #44444E;
-    --color-accent: #715A5A;
-    --color-accent-light: #8A7070;
+    --color-accent: #37353E;
+    --color-accent-light: #37353E;
     --color-light-bg: #D3DAD9;
     --color-border: #E5E7EB;
     --color-text: #37353E;
@@ -618,7 +618,7 @@
 .response-item__avatar {
     width: 56px;
     height: 56px;
-    background: linear-gradient(135deg, #715A5A, #8A7070);
+    background: linear-gradient(135deg, #37353E, #37353E);
     border-radius: 14px;
     display: flex;
     align-items: center;

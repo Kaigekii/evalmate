@@ -107,3 +107,9 @@ label {
     margin-bottom: 1rem;
     font-size: 2rem;
 }
+
+.success-container p {
+    color: var(--color-text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}

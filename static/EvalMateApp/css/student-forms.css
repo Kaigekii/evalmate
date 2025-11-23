@@ -155,3 +155,11 @@ label {
     border-radius: 12px;
     background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
 }
+
+.form-section h3 {
+    font-family: 'Poppins', sans-serif;
+    color: var(--color-primary);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--color-light-bg);
+}

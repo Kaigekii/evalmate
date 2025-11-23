@@ -183,3 +183,8 @@ label {
     font-size: 1rem;
     transition: all 0.3s ease;
 }
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}

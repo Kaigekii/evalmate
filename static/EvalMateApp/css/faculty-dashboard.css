@@ -1497,3 +1497,19 @@ html {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(113, 90, 90, 0.4);
 }
+
+/* ============================================================================
+   SPA Loading Bar (extracted from base_dashboard.html)
+   ============================================================================ */
+
+.spa-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #37353E, #37353E);
+    z-index: 9999;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+

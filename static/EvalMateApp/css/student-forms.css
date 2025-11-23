@@ -12,3 +12,13 @@ body {
     justify-content: center;
     padding: 2rem;
 }
+
+.form-passcode-wrap {
+    background: white;
+    border-radius: 16px;
+    padding: 3rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    animation: scaleIn 0.4s ease-out;
+}

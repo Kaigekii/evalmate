@@ -100,3 +100,10 @@ label {
     color: white;
     font-size: 2.5rem;
 }
+
+.success-container h1 {
+    font-family: 'Poppins', sans-serif;
+    color: var(--color-primary);
+    margin-bottom: 1rem;
+    font-size: 2rem;
+}

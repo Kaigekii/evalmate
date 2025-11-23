@@ -141,3 +141,9 @@ label {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     animation: fadeInUp 0.5s ease-out;
 }
+
+.student-form-wrap h1 {
+    font-family: 'Poppins', sans-serif;
+    color: var(--color-primary);
+    margin-bottom: 1rem;
+}

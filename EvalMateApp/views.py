@@ -91,8 +91,7 @@ def register_view(request):
                 user = user_form.save()
                 profile = profile_form.save(commit=False)
                 profile.user = user
-                # No email verification needed - mark as verified
-                profile.email_verified = True
+                # No email verification required anymore — just save the profile
                 profile.save()
                 
                 # Log the user in
@@ -100,9 +99,9 @@ def register_view(request):
                 
                 # Determine redirect URL based on account type
                 if profile.account_type == 'student':
-                    redirect_url = '/student/'
+                    redirect_url = '/dashboard/student/'
                 elif profile.account_type == 'faculty':
-                    redirect_url = '/faculty/'
+                    redirect_url = '/dashboard/faculty/'
                 else:
                     redirect_url = '/'
                 

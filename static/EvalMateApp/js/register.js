@@ -430,9 +430,9 @@ function handleRegister(event) {
     .then(data => {
         console.log('Registration response data:', data);
         if (data.success) {
-            console.log('Success! Calling showVerificationModal with:', formData.email, data.user_id);
-            // Show verification modal
-            showVerificationModal(formData.email, data.user_id);
+            console.log('Success! Redirecting to:', data.redirect);
+            // Redirect directly to dashboard (no email verification needed)
+            window.location.href = data.redirect || '/';
         } else {
             // Show error
             showMessage('errorMessage', data.message || 'Registration failed. Please try again.', true);

@@ -91,37 +91,9 @@ def register_view(request):
                 user = user_form.save()
                 profile = profile_form.save(commit=False)
                 profile.user = user
-                profile.email_verified = False  # Start as unverified
-                
-                # Generate verification code
-                import random
-                import string
-                verification_code = ''.join(random.choices(string.digits, k=6))
-                profile.verification_code = verification_code
-                profile.verification_code_created = timezone.now()
+                # No email verification needed - mark as verified
+                profile.email_verified = True
                 profile.save()
-                
-                # Send verification email asynchronously (non-blocking)
-                from django.core.mail import send_mail
-                from django.conf import settings
-                import threading
-                
-                def send_verification_email():
-                    try:
-                        send_mail(
-                            subject='EvalMate - Verify Your Email',
-                            message=f'Your verification code is: {verification_code}\n\nThis code will expire in 15 minutes.',
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            recipient_list=[profile.email],
-                            fail_silently=True,
-                        )
-                    except Exception as e:
-                        print(f"Email sending error: {str(e)}")
-                
-                # Send email in background thread to avoid blocking
-                email_thread = threading.Thread(target=send_verification_email)
-                email_thread.daemon = True
-                email_thread.start()
                 
                 # Log the user in
                 login(request, user)
@@ -194,128 +166,12 @@ def register_view(request):
     return render(request, 'EvalMateApp/register.html', context)
 
 def verify_code_view(request):
-    """Verify email verification code"""
-    if request.method == 'POST':
-        code = request.POST.get('code', '').strip()
-        
-        if not request.user.is_authenticated:
-            return JsonResponse({
-                'success': False,
-                'message': 'Please log in first'
-            })
-        
-        try:
-            profile = request.user.profile
-            
-            # Check if code matches
-            if profile.verification_code != code:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Invalid verification code'
-                })
-            
-            # Check if code is expired (15 minutes)
-            from datetime import timedelta
-            if profile.verification_code_created:
-                expiry_time = profile.verification_code_created + timedelta(minutes=15)
-                if timezone.now() > expiry_time:
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Verification code has expired. Please request a new one.'
-                    })
-            
-            # Mark as verified
-            profile.email_verified = True
-            profile.verification_code = None
-            profile.verification_code_created = None
-            profile.save()
-            
-            # Determine redirect based on account type
-            if profile.account_type == 'student':
-                redirect_url = '/dashboard/student/'
-            elif profile.account_type == 'faculty':
-                redirect_url = '/dashboard/faculty/'
-            else:
-                redirect_url = '/'
-            
-            return JsonResponse({
-                'success': True,
-                'redirect': redirect_url
-            })
-            
-        except Profile.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Profile not found'
-            })
-        except Exception as e:
-            print(f"Verification error: {str(e)}")
-            return JsonResponse({
-                'success': False,
-                'message': 'An error occurred. Please try again.'
-            })
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    """Deprecated - email verification removed"""
+    return redirect('home')
 
 def resend_code_view(request):
-    """Resend verification code"""
-    if request.method == 'POST':
-        if not request.user.is_authenticated:
-            return JsonResponse({
-                'success': False,
-                'message': 'Please log in first'
-            })
-        
-        try:
-            profile = request.user.profile
-            
-            # Generate new verification code
-            import random
-            import string
-            verification_code = ''.join(random.choices(string.digits, k=6))
-            profile.verification_code = verification_code
-            profile.verification_code_created = timezone.now()
-            profile.save()
-            
-            # Send email in background thread
-            from django.core.mail import send_mail
-            from django.conf import settings
-            import threading
-            
-            def send_verification_email():
-                try:
-                    send_mail(
-                        subject='EvalMate - Verify Your Email',
-                        message=f'Your new verification code is: {verification_code}\n\nThis code will expire in 15 minutes.',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[profile.email],
-                        fail_silently=True,
-                    )
-                except Exception as e:
-                    print(f"Email sending error: {str(e)}")
-            
-            email_thread = threading.Thread(target=send_verification_email)
-            email_thread.daemon = True
-            email_thread.start()
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Verification code sent to your email'
-            })
-            
-        except Profile.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Profile not found'
-            })
-        except Exception as e:
-            print(f"Resend error: {str(e)}")
-            return JsonResponse({
-                'success': False,
-                'message': 'An error occurred. Please try again.'
-            })
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    """Deprecated - email verification removed"""
+    return redirect('home')
 
 def logout_view(request):
     # Clear all messages before logout

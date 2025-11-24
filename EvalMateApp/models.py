@@ -11,11 +11,6 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=15, blank=True)
     institution = models.CharField(max_length=100, db_index=True)
     department = models.CharField(max_length=100)
-    
-    # Email verification fields
-    email_verified = models.BooleanField(default=False)
-    verification_code = models.CharField(max_length=6, blank=True, null=True)
-    verification_code_created = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         indexes = [

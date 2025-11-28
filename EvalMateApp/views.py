@@ -1613,3 +1613,186 @@ def student_eval_navigate_teammate(request, form_id, teammate_index):
     _save_evaluation_draft(profile, form, eval_data)
     
     return redirect('student_eval_evaluations', form_id=form.id)
+
+
+@never_cache
+@login_required
+def api_upload_profile_picture(request):
+    """Upload profile picture"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+    
+    try:
+        profile = request.user.profile
+        print(f"[DEBUG] User: {request.user.username}, Profile ID: {profile.id}")
+        
+        # Check if file was uploaded
+        if 'profile_picture' not in request.FILES:
+            print("[DEBUG] No file in request.FILES")
+            print(f"[DEBUG] request.FILES keys: {list(request.FILES.keys())}")
+            return JsonResponse({'error': 'No file uploaded'}, status=400)
+        
+        uploaded_file = request.FILES['profile_picture']
+        print(f"[DEBUG] File received: {uploaded_file.name}, Size: {uploaded_file.size}, Type: {uploaded_file.content_type}")
+        
+        # Validate file size (5MB limit)
+        if uploaded_file.size > 5 * 1024 * 1024:
+            return JsonResponse({'error': 'File size exceeds 5MB limit'}, status=400)
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
+        if uploaded_file.content_type not in allowed_types:
+            return JsonResponse({'error': 'Only JPG and PNG files are allowed'}, status=400)
+        
+        # Save locally first (for backward compatibility)
+        profile.profile_picture = uploaded_file
+        profile.save()
+        local_url = profile.profile_picture.url if profile.profile_picture else ''
+        print(f"[DEBUG] Local profile picture saved: {local_url}")
+
+        # Try Supabase Storage upload if configured
+        import os
+        SUPABASE_URL = os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+        SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY') or os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        bucket = os.environ.get('SUPABASE_PROFILE_BUCKET', 'profile-pictures')
+        public_url = None
+
+        try:
+            if SUPABASE_URL and SUPABASE_KEY:
+                from supabase import create_client
+                supa = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+                # Path: user_id/timestamp_filename
+                import time
+                safe_name = uploaded_file.name.replace(' ', '_')
+                path = f"{profile.user.id}/{int(time.time())}_{safe_name}"
+
+                # Read file bytes (ensure pointer at start)
+                uploaded_file.seek(0)
+                file_bytes = uploaded_file.read()
+
+                # Upload (upsert to overwrite if same path)
+                supa.storage.from_(bucket).upload(path, file_bytes, {
+                    'contentType': uploaded_file.content_type,
+                    'upsert': True
+                })
+
+                # Get a public URL (assumes bucket is public)
+                public_url = supa.storage.from_(bucket).get_public_url(path)
+
+                # Save URL on profile for server-rendered pages
+                profile.profile_picture_url = public_url
+                profile.save(update_fields=['profile_picture_url'])
+                print(f"[DEBUG] Supabase upload successful: {public_url}")
+        except Exception as supa_err:
+            print(f"[WARN] Supabase upload failed: {supa_err}")
+
+        # Prefer Supabase URL if available, else fallback to local
+        final_url = public_url or local_url
+        return JsonResponse({'success': True, 'image_url': final_url})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_update_personal_info(request):
+    """Persist personal info fields to Profile"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+
+    try:
+        profile = request.user.profile
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        dob = request.POST.get('date_of_birth', '').strip()
+
+        if not first_name or not last_name or not email:
+            return JsonResponse({'success': False, 'error': 'First name, last name and email are required.'}, status=400)
+
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.email = email
+        profile.phone_number = phone_number
+        if dob:
+            from datetime import datetime
+            try:
+                profile.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid date format (YYYY-MM-DD).'}, status=400)
+        else:
+            profile.date_of_birth = None
+
+        profile.save()
+
+        # keep auth_user in sync
+        request.user.first_name = first_name
+        request.user.last_name = last_name
+        request.user.email = email
+        request.user.save(update_fields=['first_name', 'last_name', 'email'])
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_update_academic_info(request):
+    """Persist academic info fields to Profile"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+
+    try:
+        profile = request.user.profile
+        major = request.POST.get('major', '').strip()
+        academic_year = request.POST.get('academic_year', '').strip()
+        expected_graduation = request.POST.get('expected_graduation', '').strip()
+        current_gpa = request.POST.get('current_gpa', '').strip()
+
+        profile.major = major
+        profile.academic_year = academic_year
+
+        if expected_graduation:
+            from datetime import datetime
+            try:
+                profile.expected_graduation = datetime.strptime(expected_graduation, '%Y-%m-%d').date()
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid date for expected graduation.'}, status=400)
+        else:
+            profile.expected_graduation = None
+
+        if current_gpa:
+            try:
+                gpa = float(current_gpa)
+                if gpa < 0 or gpa > 4.0:
+                    return JsonResponse({'success': False, 'error': 'GPA must be between 0.00 and 4.00.'}, status=400)
+                profile.current_gpa = round(gpa, 2)
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid GPA value.'}, status=400)
+        else:
+            profile.current_gpa = None
+
+        # Persist only updated fields
+        update_fields = ['major', 'academic_year', 'expected_graduation', 'current_gpa']
+        profile.save(update_fields=update_fields)
+
+        # Return normalized values so UI can reflect exactly what was saved
+        result = {
+            'success': True,
+            'major': profile.major or '',
+            'academic_year': profile.academic_year or '',
+            'expected_graduation': profile.expected_graduation.isoformat() if profile.expected_graduation else '',
+            'current_gpa': f"{profile.current_gpa:.2f}" if profile.current_gpa is not None else '',
+        }
+        return JsonResponse(result)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

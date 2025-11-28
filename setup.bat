@@ -24,13 +24,24 @@ REM Activate virtual environment
 echo [2/4] Activating virtual environment...
 call ..\venv\Scripts\activate.bat
 
-REM Install/Update requirements
+REM Install/Update requirements with resilient options
 echo [3/4] Installing/Updating dependencies...
-pip install -r requirements.txt
+set PIP_DEFAULT_TIMEOUT=300
+python -m pip install --upgrade pip setuptools wheel
 if errorlevel 1 (
-    echo [ERROR] Failed to install dependencies!
-    pause
-    exit /b 1
+    echo [WARN] Failed to upgrade pip/setuptools/wheel. Continuing...
+)
+
+echo [INFO] Attempting primary install...
+pip install --default-timeout 300 -r requirements.txt
+if errorlevel 1 (
+    echo [WARN] Primary install failed. Retrying with no cache and PyPI simple index...
+    pip install --no-cache-dir --default-timeout 300 -i https://pypi.org/simple -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] Failed to install dependencies after retry!
+        pause
+        exit /b 1
+    )
 )
 
 REM Run migrations

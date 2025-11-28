@@ -93,7 +93,9 @@
                     <!-- User Profile -->
                     <div class="topnav__user">
                         <div class="user__avatar">
-                            {% if profile.profile_picture %}
+                            {% if profile.profile_picture_url %}
+                                <img src="{{ profile.profile_picture_url }}" alt="{{ profile.first_name }}" class="user__avatar-img">
+                            {% elif profile.profile_picture %}
                                 <img src="{{ profile.profile_picture.url }}" alt="{{ profile.first_name }}" class="user__avatar-img">
                             {% elif profile.first_name and profile.last_name %}
                                 {{ profile.first_name|first}}{{ profile.last_name|first }}
@@ -273,11 +275,21 @@
                     <div class="profile-picture-section">
                         <div class="profile-picture-card">
                             <div class="profile-picture">
-                                <div class="profile-picture__avatar" id="profileAvatar">
-                                    {% if profile.first_name and profile.last_name %}
-                                        {{ profile.first_name|first }}{{ profile.last_name|first }}
-                                    {% else %}
-                                        MAC
+                                <div 
+                                    class="profile-picture__avatar" 
+                                    id="profileAvatar"
+                                    {% if profile.profile_picture_url %}
+                                        style="background-image: url('{{ profile.profile_picture_url }}'); background-size: cover; background-position: center;"
+                                    {% elif profile.profile_picture %}
+                                        style="background-image: url('{{ profile.profile_picture.url }}'); background-size: cover; background-position: center;"
+                                    {% endif %}
+                                >
+                                    {% if not profile.profile_picture_url and not profile.profile_picture %}
+                                        {% if profile.first_name and profile.last_name %}
+                                            {{ profile.first_name|first }}{{ profile.last_name|first }}
+                                        {% else %}
+                                            MAC
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                                 <button class="profile-picture__upload" id="uploadBtn">
@@ -375,6 +387,7 @@
                                                 id="dateOfBirth" 
                                                 name="date_of_birth" 
                                                 class="form-input"
+                                                value="{{ profile.date_of_birth|date:'Y-m-d' }}"
                                             >
                                         </div>
                                     </div>
@@ -410,15 +423,17 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="major" class="form-label">Major</label>
-                                            <select id="major" name="major" class="form-select">
+                                            <select id="major" name="major" class="form-select" data-current-major="{{ profile.major|default:'' }}">
                                                 <option value="">Select Major</option>
-                                                <option value="Information Technology">Information Technology</option>
-                                                <option value="Computer Science">Computer Science</option>
-                                                <option value="Software Engineering">Software Engineering</option>
-                                                <option value="Data Science">Data Science</option>
-                                                <option value="Cybersecurity">Cybersecurity</option>
-                                                <option value="Business Administration">Business Administration</option>
+                                                <option value="Information Technology" {% if profile.major == 'Information Technology' %}selected{% endif %}>Information Technology</option>
+                                                <option value="Computer Science" {% if profile.major == 'Computer Science' %}selected{% endif %}>Computer Science</option>
+                                                <option value="Software Engineering" {% if profile.major == 'Software Engineering' %}selected{% endif %}>Software Engineering</option>
+                                                <option value="Data Science" {% if profile.major == 'Data Science' %}selected{% endif %}>Data Science</option>
+                                                <option value="Cybersecurity" {% if profile.major == 'Cybersecurity' %}selected{% endif %}>Cybersecurity</option>
+                                                <option value="Business Administration" {% if profile.major == 'Business Administration' %}selected{% endif %}>Business Administration</option>
+                                                <option value="Other">Other</option>
                                             </select>
+                                            <input type="text" id="majorOther" class="form-input" placeholder="Specify your major" style="display:none; margin-top:8px;" autocomplete="organization-title">
                                         </div>
                                     </div>
 
@@ -427,10 +442,10 @@
                                             <label for="academicYear" class="form-label">Academic Year</label>
                                             <select id="academicYear" name="academic_year" class="form-select">
                                                 <option value="">Select Year</option>
-                                                <option value="Freshman">Freshman</option>
-                                                <option value="Sophomore">Sophomore</option>
-                                                <option value="Junior">Junior</option>
-                                                <option value="Senior">Senior</option>
+                                                <option value="Freshman" {% if profile.academic_year == 'Freshman' %}selected{% endif %}>Freshman</option>
+                                                <option value="Sophomore" {% if profile.academic_year == 'Sophomore' %}selected{% endif %}>Sophomore</option>
+                                                <option value="Junior" {% if profile.academic_year == 'Junior' %}selected{% endif %}>Junior</option>
+                                                <option value="Senior" {% if profile.academic_year == 'Senior' %}selected{% endif %}>Senior</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
@@ -440,6 +455,8 @@
                                                 id="expectedGraduation" 
                                                 name="expected_graduation" 
                                                 class="form-input"
+                                                value="{{ profile.expected_graduation|date:'Y-m-d' }}"
+                                                autocomplete="off"
                                             >
                                         </div>
                                     </div>
@@ -456,6 +473,9 @@
                                                 min="0" 
                                                 max="4.0"
                                                 placeholder="0.00"
+                                                value="{{ profile.current_gpa|default_if_none:''|floatformat:'2' }}"
+                                                inputmode="decimal"
+                                                autocomplete="off"
                                             >
                                         </div>
                                     </div>

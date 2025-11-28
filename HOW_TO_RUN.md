@@ -1,11 +1,28 @@
 # How to Run EvalMate Project
 
-## ✅ Setup Complete!
-Your project is now configured to use **Supabase with Transaction Mode Pooling** (port 6543).
+## 🚀 Quick Start (Recommended)
+
+### **Easy Way - Using Automation Scripts:**
+
+#### **First Time Setup:**
+```powershell
+# Run this ONCE to set everything up
+setup.bat
+```
+
+#### **Daily Development:**
+```powershell
+# Just double-click or run this to start the server
+run.bat
+```
+
+That's it! No need to activate venv or install requirements manually! 🎉
+
+📖 **[See all available scripts in SCRIPTS_README.md](SCRIPTS_README.md)**
 
 ---
 
-## Quick Start
+## ⚙️ Manual Setup (Alternative)
 
 ### 1. Start the Development Server
 ```powershell

@@ -339,6 +339,14 @@ body {
     justify-content: center;
     font-weight: 600;
     font-size: 0.875rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.user__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .user__info {

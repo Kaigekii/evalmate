@@ -11,6 +11,7 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=15, blank=True)
     institution = models.CharField(max_length=100, db_index=True)
     department = models.CharField(max_length=100)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
 
     class Meta:
         indexes = [

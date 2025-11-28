@@ -210,3 +210,6 @@ LOGOUT_REDIRECT_URL = '/login/'
 # Site URL
 SITE_URL = env('SITE_URL', default='http://127.0.0.1:8000')
 
+# Media files (User uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

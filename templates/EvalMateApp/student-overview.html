@@ -93,7 +93,9 @@
                     <!-- User Profile -->
                     <div class="topnav__user">
                         <div class="user__avatar">
-                            {% if profile.first_name and profile.last_name %}
+                            {% if profile.profile_picture %}
+                                <img src="{{ profile.profile_picture.url }}" alt="{{ profile.first_name }}" class="user__avatar-img">
+                            {% elif profile.first_name and profile.last_name %}
                                 {{ profile.first_name|first}}{{ profile.last_name|first }}
                             {% else %}
                                 <i class="fas fa-user"></i>

@@ -9,72 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            padding: 2rem;
-        }
-        .student-form-wrap {
-            background: white;
-            border-radius: 16px;
-            padding: 3rem;
-            max-width: 900px;
-            margin: 0 auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            animation: fadeInUp 0.5s ease-out;
-        }
-        .student-form-wrap h1 {
-            font-family: 'Poppins', sans-serif;
-            color: var(--color-primary);
-            margin-bottom: 1rem;
-        }
-        .form-section {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            border: 2px solid var(--color-border);
-            border-radius: 12px;
-            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-        }
-        .form-section h3 {
-            font-family: 'Poppins', sans-serif;
-            color: var(--color-primary);
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid var(--color-light-bg);
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        .form-group label {
-            display: block;
-            font-weight: 500;
-            color: var(--color-text);
-            margin-bottom: 0.5rem;
-        }
-        .form-input, .form-select {
-            width: 100%;
-            padding: 0.875rem;
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        .form-input:focus, .form-select:focus {
-            outline: none;
-            border-color: var(--color-accent);
-        }
-        textarea.form-input {
-            min-height: 100px;
-            resize: vertical;
-        }
-        .btn-group {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 2rem;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/student-forms.css' %}">
 </head>
 <body>
     <div class="student-form-wrap">

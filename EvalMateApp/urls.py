@@ -5,8 +5,6 @@ urlpatterns = [
     path('', views.home_view, name='home'),
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
-    path('verify-code/', views.verify_code_view, name='verify_code'),
-    path('resend-code/', views.resend_code_view, name='resend_code'),
     path('logout/', views.logout_view, name='logout'),
     
     # Student Dashboard Routes (SPA)
@@ -48,4 +46,9 @@ urlpatterns = [
     path('api/student/draft/save/', views.api_save_draft, name='api_save_draft'),
     path('api/student/draft/<int:form_id>/', views.api_get_draft, name='api_get_draft'),
     path('api/student/draft/<int:form_id>/delete/', views.api_delete_draft, name='api_delete_draft'),
+    
+    # Profile API endpoints
+    path('api/profile/upload-picture/', views.api_upload_profile_picture, name='api_upload_profile_picture'),
+    path('api/profile/update-personal/', views.api_update_personal_info, name='api_update_personal_info'),
+    path('api/profile/update-academic/', views.api_update_academic_info, name='api_update_academic_info'),
 ]

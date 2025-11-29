@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -11,9 +10,6 @@ from django.utils import timezone
 from django.db.models import Q
 from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_exempt
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.conf import settings
 
 from .models import FormTemplate, FormResponse, ResponseAnswer, Profile, PendingEvaluation, DraftResponse
 
@@ -78,247 +74,103 @@ def login_view(request):
 
 def register_view(request):
     if request.method == 'POST':
+        print("========== REGISTRATION REQUEST RECEIVED ==========")
+        print(f"Request method: {request.method}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"POST data: {request.POST}")
+        
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        print(f"Is AJAX: {is_ajax}")
+        
         user_form = UserRegisterForm(request.POST)
         profile_form = ProfileForm(request.POST)
         
-        # Check if request is AJAX
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        
         if user_form.is_valid() and profile_form.is_valid():
             try:
-                print(f"\n=== REGISTER VIEW: Creating User ===")
-                # Create user
-                user = user_form.save(commit=False)
-                user.email = profile_form.cleaned_data['email']
-                user.is_active = True
-                user.save()
-                print(f"✓ User created: {user.username}")
-                
-                # Create profile
+                user = user_form.save()
                 profile = profile_form.save(commit=False)
                 profile.user = user
-                profile.email_verified = False
-                
-                # Generate 6-digit verification code
-                verification_code = profile.generate_verification_code()
+                # No email verification required anymore — just save the profile
                 profile.save()
-                print(f"✓ Profile created with code: {verification_code}")
                 
-                # Send verification email with code
-                print(f"→ Calling send_verification_code_email...")
-                send_verification_code_email(request, user, profile, verification_code)
-                print(f"✓ Email function returned successfully")
+                # Log the user in
+                login(request, user)
                 
-                # Store user ID in session for verification
-                request.session['pending_verification_user_id'] = user.id
+                # Determine redirect URL based on account type
+                if profile.account_type == 'student':
+                    redirect_url = '/dashboard/student/'
+                elif profile.account_type == 'faculty':
+                    redirect_url = '/dashboard/faculty/'
+                else:
+                    redirect_url = '/'
                 
                 if is_ajax:
+                    from django.http import JsonResponse
                     return JsonResponse({
                         'success': True,
-                        'message': f'Account created! Verification code sent to {profile.email}',
-                        'email': profile.email,
-                        'user_id': user.id
-                    })
-                else:
-                    messages.success(request, f'Account created! Verification code sent to {profile.email}')
-                    return redirect('email_verification_sent')
-                    
-            except Exception as e:
-                if user.id:
-                    user.delete()  # Rollback if something fails
-                if is_ajax:
-                    return JsonResponse({
-                        'success': False,
-                        'message': f'Failed to create account: {str(e)}'
-                    }, status=400)
-                else:
-                    messages.error(request, f'Failed to create account: {str(e)}')
-                    return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
-        else:
-            # Show specific form errors
-            errors = {}
-            error_messages = []
-            
-            if user_form.errors:
-                for field, error_list in user_form.errors.items():
-                    errors[field] = [str(e) for e in error_list]
-                    error_messages.extend([str(e) for e in error_list])
-                    
-            if profile_form.errors:
-                for field, error_list in profile_form.errors.items():
-                    errors[field] = [str(e) for e in error_list]
-                    error_messages.extend([str(e) for e in error_list])
-            
-            if is_ajax:
-                return JsonResponse({
-                    'success': False,
-                    'message': '; '.join(error_messages) if error_messages else 'Please fix the errors in the form.',
-                    'errors': errors
-                }, status=400)
-            else:
-                for msg in error_messages:
-                    messages.error(request, msg)
-                return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
-    else:
-        user_form = UserRegisterForm()
-        profile_form = ProfileForm()
-    return render(request, 'EvalMateApp/register.html', {'user_form': user_form, 'profile_form': profile_form})
-
-
-def send_verification_code_email(request, user, profile, code):
-    """Send 6-digit verification code to user's email"""
-    print(f"\n=== ATTEMPTING TO SEND EMAIL ===")
-    print(f"Recipient: {profile.email}")
-    print(f"Code: {code}")
-    print(f"From: {settings.DEFAULT_FROM_EMAIL}")
-    
-    subject = 'Verify Your EvalMate Account - Verification Code'
-    html_message = render_to_string('EvalMateApp/emails/verification_code_email.html', {
-        'user': user,
-        'profile': profile,
-        'verification_code': code,
-    })
-    plain_message = f"""
-Hello {profile.first_name} {profile.last_name},
-
-Welcome to EvalMate! Your verification code is:
-
-{code}
-
-This code will expire in 15 minutes.
-
-If you didn't create this account, please ignore this email.
-
-Thank you,
-EvalMate Team
-"""
-    
-    try:
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[profile.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
-        print(f"✓ EMAIL SENT SUCCESSFULLY to {profile.email}")
-    except Exception as e:
-        print(f"✗ EMAIL SEND FAILED: {str(e)}")
-        raise
-
-
-def verify_code_view(request):
-    """AJAX endpoint to verify the 6-digit code"""
-    if request.method == 'POST':
-        try:
-            # Get code from POST data
-            code = request.POST.get('code', '').strip()
-            
-            # Get user_id from session
-            user_id = request.session.get('pending_verification_user_id')
-            
-            if not user_id:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Session expired. Please register again.'
-                }, status=400)
-            
-            user = User.objects.get(id=user_id)
-            profile = user.profile
-            
-            # Check if code matches and is still valid
-            if profile.verification_code == code:
-                if profile.is_verification_code_valid():
-                    # Mark as verified and log user in
-                    profile.email_verified = True
-                    profile.verification_code = None  # Clear the code
-                    profile.save()
-                    
-                    # Log the user in automatically
-                    login(request, user)
-                    
-                    # Clear session
-                    if 'pending_verification_user_id' in request.session:
-                        del request.session['pending_verification_user_id']
-                    
-                    # Determine redirect URL based on account type
-                    if profile.account_type == 'student':
-                        redirect_url = '/dashboard/student/'
-                    else:  # faculty
-                        redirect_url = '/dashboard/faculty/'
-                    
-                    return JsonResponse({
-                        'success': True,
-                        'message': 'Email verified successfully!',
+                        'user_id': user.id,
                         'redirect': redirect_url
                     })
                 else:
+                    return redirect(redirect_url)
+                    
+            except Exception as e:
+                print(f"Registration error: {str(e)}")  # Log the actual error
+                error_msg = f'Unable to create account: {str(e)}'
+                if is_ajax:
+                    from django.http import JsonResponse
                     return JsonResponse({
                         'success': False,
-                        'message': 'Verification code has expired. Please request a new one.'
-                    }, status=400)
-            else:
+                        'message': error_msg
+                    })
+                else:
+                    messages.error(request, error_msg)
+        else:
+            # Collect form errors
+            errors = []
+            if user_form.errors:
+                for field, error_list in user_form.errors.items():
+                    for error in error_list:
+                        errors.append(f"{field}: {error}")
+            if profile_form.errors:
+                for field, error_list in profile_form.errors.items():
+                    for error in error_list:
+                        errors.append(f"{field}: {error}")
+            
+            error_msg = ' '.join(errors) if errors else 'Please correct the errors in the form.'
+            
+            if is_ajax:
+                from django.http import JsonResponse
                 return JsonResponse({
                     'success': False,
-                    'message': 'Invalid code. Please try again.'
-                }, status=400)
-                
-        except User.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'User not found. Please register again.'
-            }, status=404)
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'An error occurred: {str(e)}'
-            }, status=500)
+                    'message': error_msg,
+                    'errors': {
+                        'user_form': dict(user_form.errors),
+                        'profile_form': dict(profile_form.errors)
+                    }
+                })
+            else:
+                messages.error(request, error_msg)
+    else:
+        user_form = UserRegisterForm()
+        profile_form = ProfileForm()
     
-    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+    import time
+    context = {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'timestamp': int(time.time())
+    }
+    return render(request, 'EvalMateApp/register.html', context)
 
+def verify_code_view(request):
+    """Deprecated - email verification removed"""
+    return redirect('home')
 
 def resend_code_view(request):
-    """AJAX endpoint to resend verification code"""
-    if request.method == 'POST':
-        try:
-            # Get user_id from session
-            user_id = request.session.get('pending_verification_user_id')
-            
-            if not user_id:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Session expired. Please register again.'
-                }, status=400)
-            
-            user = User.objects.get(id=user_id)
-            profile = user.profile
-            
-            # Generate new code
-            new_code = profile.generate_verification_code()
-            profile.save()
-            
-            # Send new email
-            send_verification_code_email(request, user, profile, new_code)
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'New verification code sent to {profile.email}'
-            })
-            
-        except User.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'User not found. Please register again.'
-            }, status=404)
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'An error occurred: {str(e)}'
-            }, status=500)
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
-
+    """Deprecated - email verification removed"""
+    return redirect('home')
 
 def logout_view(request):
     # Clear all messages before logout
@@ -1761,3 +1613,186 @@ def student_eval_navigate_teammate(request, form_id, teammate_index):
     _save_evaluation_draft(profile, form, eval_data)
     
     return redirect('student_eval_evaluations', form_id=form.id)
+
+
+@never_cache
+@login_required
+def api_upload_profile_picture(request):
+    """Upload profile picture"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+    
+    try:
+        profile = request.user.profile
+        print(f"[DEBUG] User: {request.user.username}, Profile ID: {profile.id}")
+        
+        # Check if file was uploaded
+        if 'profile_picture' not in request.FILES:
+            print("[DEBUG] No file in request.FILES")
+            print(f"[DEBUG] request.FILES keys: {list(request.FILES.keys())}")
+            return JsonResponse({'error': 'No file uploaded'}, status=400)
+        
+        uploaded_file = request.FILES['profile_picture']
+        print(f"[DEBUG] File received: {uploaded_file.name}, Size: {uploaded_file.size}, Type: {uploaded_file.content_type}")
+        
+        # Validate file size (5MB limit)
+        if uploaded_file.size > 5 * 1024 * 1024:
+            return JsonResponse({'error': 'File size exceeds 5MB limit'}, status=400)
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
+        if uploaded_file.content_type not in allowed_types:
+            return JsonResponse({'error': 'Only JPG and PNG files are allowed'}, status=400)
+        
+        # Save locally first (for backward compatibility)
+        profile.profile_picture = uploaded_file
+        profile.save()
+        local_url = profile.profile_picture.url if profile.profile_picture else ''
+        print(f"[DEBUG] Local profile picture saved: {local_url}")
+
+        # Try Supabase Storage upload if configured
+        import os
+        SUPABASE_URL = os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+        SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY') or os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        bucket = os.environ.get('SUPABASE_PROFILE_BUCKET', 'profile-pictures')
+        public_url = None
+
+        try:
+            if SUPABASE_URL and SUPABASE_KEY:
+                from supabase import create_client
+                supa = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+                # Path: user_id/timestamp_filename
+                import time
+                safe_name = uploaded_file.name.replace(' ', '_')
+                path = f"{profile.user.id}/{int(time.time())}_{safe_name}"
+
+                # Read file bytes (ensure pointer at start)
+                uploaded_file.seek(0)
+                file_bytes = uploaded_file.read()
+
+                # Upload (upsert to overwrite if same path)
+                supa.storage.from_(bucket).upload(path, file_bytes, {
+                    'contentType': uploaded_file.content_type,
+                    'upsert': True
+                })
+
+                # Get a public URL (assumes bucket is public)
+                public_url = supa.storage.from_(bucket).get_public_url(path)
+
+                # Save URL on profile for server-rendered pages
+                profile.profile_picture_url = public_url
+                profile.save(update_fields=['profile_picture_url'])
+                print(f"[DEBUG] Supabase upload successful: {public_url}")
+        except Exception as supa_err:
+            print(f"[WARN] Supabase upload failed: {supa_err}")
+
+        # Prefer Supabase URL if available, else fallback to local
+        final_url = public_url or local_url
+        return JsonResponse({'success': True, 'image_url': final_url})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_update_personal_info(request):
+    """Persist personal info fields to Profile"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+
+    try:
+        profile = request.user.profile
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        dob = request.POST.get('date_of_birth', '').strip()
+
+        if not first_name or not last_name or not email:
+            return JsonResponse({'success': False, 'error': 'First name, last name and email are required.'}, status=400)
+
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.email = email
+        profile.phone_number = phone_number
+        if dob:
+            from datetime import datetime
+            try:
+                profile.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid date format (YYYY-MM-DD).'}, status=400)
+        else:
+            profile.date_of_birth = None
+
+        profile.save()
+
+        # keep auth_user in sync
+        request.user.first_name = first_name
+        request.user.last_name = last_name
+        request.user.email = email
+        request.user.save(update_fields=['first_name', 'last_name', 'email'])
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_update_academic_info(request):
+    """Persist academic info fields to Profile"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=400)
+
+    try:
+        profile = request.user.profile
+        major = request.POST.get('major', '').strip()
+        academic_year = request.POST.get('academic_year', '').strip()
+        expected_graduation = request.POST.get('expected_graduation', '').strip()
+        current_gpa = request.POST.get('current_gpa', '').strip()
+
+        profile.major = major
+        profile.academic_year = academic_year
+
+        if expected_graduation:
+            from datetime import datetime
+            try:
+                profile.expected_graduation = datetime.strptime(expected_graduation, '%Y-%m-%d').date()
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid date for expected graduation.'}, status=400)
+        else:
+            profile.expected_graduation = None
+
+        if current_gpa:
+            try:
+                gpa = float(current_gpa)
+                if gpa < 0 or gpa > 4.0:
+                    return JsonResponse({'success': False, 'error': 'GPA must be between 0.00 and 4.00.'}, status=400)
+                profile.current_gpa = round(gpa, 2)
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid GPA value.'}, status=400)
+        else:
+            profile.current_gpa = None
+
+        # Persist only updated fields
+        update_fields = ['major', 'academic_year', 'expected_graduation', 'current_gpa']
+        profile.save(update_fields=update_fields)
+
+        # Return normalized values so UI can reflect exactly what was saved
+        result = {
+            'success': True,
+            'major': profile.major or '',
+            'academic_year': profile.academic_year or '',
+            'expected_graduation': profile.expected_graduation.isoformat() if profile.expected_graduation else '',
+            'current_gpa': f"{profile.current_gpa:.2f}" if profile.current_gpa is not None else '',
+        }
+        return JsonResponse(result)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

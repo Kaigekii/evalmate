@@ -51,19 +51,19 @@
                     <p class="quick-actions__subtitle">Manage your evaluations and access key features quickly</p>
 
                     <div class="actions-grid">
-                        <!-- Create New Evaluation Card -->
-                        <a href="{% url 'form_builder' %}" class="action-card action-card--dark" style="text-decoration: none;">
+                        <!-- Create New Evaluation Card - Display Only -->
+                        <div class="action-card action-card--dark action-card--disabled" style="pointer-events: none; opacity: 0.7;">
                             <div class="action-card__icon action-card__icon--dark">
                                 <i class="far fa-file-alt"></i>
                             </div>
                             <div class="action-card__content">
                                 <h3 class="action-card__title">Create New Evaluation</h3>
-                                <p class="action-card__description">Design and publish evaluation forms for your students</p>
+                                <p class="action-card__description">Use the "Create New Form" button below in Forms Management</p>
                             </div>
                             <div class="action-card__button">
                                 <i class="fas fa-arrow-right"></i>
                             </div>
-                        </a>
+                        </div>
 
                         <!-- View Reports Card -->
                         <a href="{% url 'faculty_reports' %}" class="action-card action-card--green" style="text-decoration: none;">

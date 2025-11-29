@@ -629,6 +629,7 @@ function initProfileForms() {
     const academicForm = document.getElementById('academicInfoForm');
     if (academicForm) {
         academicForm.addEventListener('submit', handleAcademicInfoSubmit);
+        setupAcademicFormEnhancements(academicForm);
     }
     
     document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
@@ -649,32 +650,181 @@ async function handlePersonalInfoSubmit(event) {
     
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
-    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     console.log('Saving personal info:', data);
-    
     try {
-        // TODO: Replace with actual API call
+        const res = await fetch('/api/profile/update-personal/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save');
+        // Update top bar name immediately
+        document.querySelectorAll('.user__name').forEach(el => el.textContent = `${data.first_name} ${data.last_name}`);
         alert('Personal information saved successfully!');
     } catch (error) {
         console.error('Error saving personal info:', error);
-        alert('Failed to save personal information. Please try again.');
+        alert('Failed to save personal information. ' + (error.message || 'Please try again.'));
     }
 }
 
 async function handleAcademicInfoSubmit(event) {
     event.preventDefault();
     
-    const formData = new FormData(event.target);
+    const form = event.target;
+    const formData = new FormData(form);
+
+    // Normalize Major: if 'Other' selected, use custom text
+    const majorSelect = document.getElementById('major');
+    const majorOther = document.getElementById('majorOther');
+    if (majorSelect && majorSelect.value === 'Other') {
+        const customMajor = (majorOther?.value || '').trim();
+        if (customMajor.length === 0) {
+            alert('Please specify your major.');
+            majorOther?.focus();
+            return;
+        }
+        formData.set('major', customMajor);
+    }
+
+    // Normalize GPA: clamp 0–4 and round to 2 decimals
+    const gpaEl = document.getElementById('currentGPA');
+    if (gpaEl && gpaEl.value !== '') {
+        let g = Number(gpaEl.value);
+        if (isNaN(g)) {
+            alert('Invalid GPA value.');
+            gpaEl.focus();
+            return;
+        }
+        g = Math.max(0, Math.min(4, g));
+        g = Math.round(g * 100) / 100;
+        const gStr = g.toFixed(2);
+        gpaEl.value = gStr;
+        formData.set('current_gpa', gStr);
+    }
+
+    // Validate Expected Graduation (optional): ensure yyyy-mm-dd or empty
+    const eg = document.getElementById('expectedGraduation');
+    if (eg && eg.value) {
+        const valid = /^\d{4}-\d{2}-\d{2}$/.test(eg.value);
+        if (!valid) {
+            alert('Expected Graduation must be a valid date (YYYY-MM-DD).');
+            eg.focus();
+            return;
+        }
+    }
+
     const data = Object.fromEntries(formData);
-    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     console.log('Saving academic info:', data);
-    
     try {
-        // TODO: Replace with actual API call
+        const res = await fetch('/api/profile/update-academic/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save');
+
+        // Reflect saved values exactly as persisted by server
+        if (json.major !== undefined) {
+            const builtinOptions = Array.from(majorSelect.options).map(o => o.value);
+            if (builtinOptions.includes(json.major)) {
+                majorSelect.value = json.major || '';
+                if (majorOther) {
+                    majorOther.style.display = 'none';
+                    majorOther.value = '';
+                }
+            } else if (json.major) {
+                majorSelect.value = 'Other';
+                if (majorOther) {
+                    majorOther.style.display = 'block';
+                    majorOther.value = json.major;
+                }
+            }
+        }
+
+        if (json.academic_year !== undefined) {
+            const ay = document.getElementById('academicYear');
+            if (ay) ay.value = json.academic_year || '';
+        }
+
+        if (json.expected_graduation !== undefined) {
+            const egVal = (json.expected_graduation || '').slice(0, 10);
+            const eg = document.getElementById('expectedGraduation');
+            if (eg) eg.value = egVal;
+        }
+
+        if (json.current_gpa !== undefined) {
+            const gpaEl2 = document.getElementById('currentGPA');
+            if (gpaEl2) gpaEl2.value = json.current_gpa || '';
+        }
+
         alert('Academic information saved successfully!');
     } catch (error) {
         console.error('Error saving academic info:', error);
-        alert('Failed to save academic information. Please try again.');
+        alert('Failed to save academic information. ' + (error.message || 'Please try again.'));
+    }
+}
+
+function setupAcademicFormEnhancements(academicForm) {
+    // Set min date for Expected Graduation to today
+    const eg = document.getElementById('expectedGraduation');
+    if (eg) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        eg.min = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Major: toggle Other input
+    const majorSelect = document.getElementById('major');
+    const majorOther = document.getElementById('majorOther');
+    if (majorSelect) {
+        const builtinValues = Array.from(majorSelect.options).map(o => o.value).filter(Boolean);
+        const currentMajor = majorSelect.getAttribute('data-current-major') || '';
+        // If current major is non-empty and not in builtin list, select Other and display custom
+        if (currentMajor && !builtinValues.includes(currentMajor)) {
+            majorSelect.value = 'Other';
+            if (majorOther) {
+                majorOther.style.display = 'block';
+                majorOther.value = currentMajor;
+            }
+        }
+
+        const toggleOther = () => {
+            if (!majorOther) return;
+            if (majorSelect.value === 'Other') {
+                majorOther.style.display = 'block';
+                majorOther.focus();
+            } else {
+                majorOther.style.display = 'none';
+                majorOther.value = '';
+            }
+        };
+        majorSelect.addEventListener('change', toggleOther);
+        toggleOther();
+    }
+
+    // GPA formatting on blur
+    const gpaEl = document.getElementById('currentGPA');
+    if (gpaEl) {
+        const format = () => {
+            if (gpaEl.value === '') return;
+            let g = Number(gpaEl.value);
+            if (isNaN(g)) return;
+            g = Math.max(0, Math.min(4, g));
+            gpaEl.value = (Math.round(g * 100) / 100).toFixed(2);
+        };
+        gpaEl.addEventListener('blur', format);
+        // Initial normalization of prefilled value
+        format();
     }
 }
 
@@ -705,6 +855,7 @@ function handleProfilePictureChange(event) {
             return;
         }
         
+        // Show immediate preview on profile page avatar
         const reader = new FileReader();
         reader.onload = (e) => {
             const avatar = document.getElementById('profileAvatar');
@@ -717,7 +868,51 @@ function handleProfilePictureChange(event) {
         };
         reader.readAsDataURL(file);
         
+        // Upload to server
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        
         console.log('Uploading profile picture:', file.name);
+        
+        fetch('/api/profile/upload-picture/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Upload successful:', data.image_url);
+                
+                // Update the top-right avatar in the navigation
+                updateTopNavAvatar(data.image_url);
+                
+                // Show success message
+                alert('Profile picture updated successfully!');
+            } else {
+                console.error('Upload failed:', data.error);
+                alert('Failed to upload profile picture: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            alert('Failed to upload profile picture. Please try again.');
+        });
+    }
+}
+
+function updateTopNavAvatar(imageUrl) {
+    // Find the top-right avatar in the navigation
+    const topNavAvatar = document.querySelector('.topnav__user .user__avatar');
+    
+    if (topNavAvatar) {
+        // Clear existing content and add image
+        topNavAvatar.innerHTML = `<img src="${imageUrl}" alt="Profile Picture" class="user__avatar-img">`;
     }
 }
 

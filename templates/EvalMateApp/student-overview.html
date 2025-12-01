@@ -85,9 +85,16 @@
                         <input 
                             type="text" 
                             class="search-bar__input" 
-                            placeholder="Search evaluations..."
+                            placeholder="Search forms and evaluations..."
                             id="searchInput"
+                            autocomplete="off"
                         >
+                        <button class="search-bar__clear" id="searchClear" title="Clear search">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="search-results" id="searchResults">
+                            <!-- Search results will be populated here -->
+                        </div>
                     </div>
 
                     <!-- User Profile -->

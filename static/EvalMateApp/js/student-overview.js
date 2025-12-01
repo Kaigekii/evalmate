@@ -632,17 +632,8 @@ function initProfileForms() {
         setupAcademicFormEnhancements(academicForm);
     }
     
-    document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
-        alert('Change Password feature coming soon!');
-    });
+
     
-    document.getElementById('enable2FABtn')?.addEventListener('click', () => {
-        alert('Two-Factor Authentication setup coming soon!');
-    });
-    
-    document.getElementById('viewSessionsBtn')?.addEventListener('click', () => {
-        alert('Active Sessions viewer coming soon!');
-    });
 }
 
 async function handlePersonalInfoSubmit(event) {

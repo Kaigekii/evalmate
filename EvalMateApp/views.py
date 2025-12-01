@@ -212,10 +212,16 @@ def student_dashboard_view(request):
         return redirect('login')
     
     import time
+    import json
+    
+    # Check if we need to show passcode modal
+    show_passcode_modal = request.session.pop('show_passcode_modal', None)
+    
     context = {
         'user': request.user,
         'profile': profile,
-        'timestamp': int(time.time())  # Cache busting
+        'timestamp': int(time.time()),  # Cache busting
+        'show_passcode_modal': json.dumps(show_passcode_modal) if show_passcode_modal else 'null'
     }
     return render(request, 'EvalMateApp/student-overview.html', context)
 
@@ -538,8 +544,16 @@ def student_form_view(request, form_id):
     if form.passcode:
         verified_forms = request.session.get('verified_forms', [])
         if form.id not in verified_forms:
-            # Passcode not yet verified - show passcode page
-            return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
+            # Passcode not yet verified - redirect to dashboard with modal trigger
+            # Store form info in session to trigger modal
+            request.session['show_passcode_modal'] = {
+                'form_id': form.id,
+                'form_title': form.title,
+                'form_description': form.description or '',
+                'requires_passcode': True
+            }
+            messages.info(request, 'This form requires a passcode to access.')
+            return redirect('student_dashboard')
     
     # No passcode required OR already verified - add directly to pending evaluations
     pending, created = PendingEvaluation.objects.get_or_create(
@@ -575,6 +589,9 @@ def student_form_access(request, form_id):
     
     # Check passcode if required
     if form.passcode and entered != form.passcode:
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'error': 'Incorrect passcode'}, status=400)
         messages.error(request, 'Incorrect passcode.')
         return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
     
@@ -591,6 +608,14 @@ def student_form_access(request, form_id):
         student=profile,
         form=form
     )
+    
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'message': f'"{form.title}" has been added to your pending evaluations!',
+            'created': created
+        })
     
     if created:
         messages.success(request, f'"{form.title}" has been added to your pending evaluations!')
@@ -1361,12 +1386,51 @@ def student_eval_submit_evaluation(request, form_id):
 @never_cache
 @login_required
 def api_get_pending_evaluations(request):
-    """Get list of pending evaluations for student"""
+    """Get list of pending evaluations for student or add new form to pending"""
     try:
         profile = request.user.profile
         if profile.account_type != 'student':
             return JsonResponse({'error': 'Access denied'}, status=403)
         
+        # Handle POST request to add form to pending
+        if request.method == 'POST':
+            import json
+            data = json.loads(request.body)
+            form_id = data.get('form_id')
+            
+            if not form_id:
+                return JsonResponse({'success': False, 'message': 'Form ID is required'}, status=400)
+            
+            form = get_object_or_404(FormTemplate, id=form_id)
+            
+            # Check privacy permissions
+            allowed = False
+            if form.privacy == 'institution' and form.institution == profile.institution:
+                allowed = True
+            elif form.privacy == 'institution_course' and form.institution == profile.institution and form.course_id:
+                allowed = True
+            
+            if not allowed:
+                return JsonResponse({'success': False, 'message': 'This form is not available for your institution or course.'}, status=403)
+            
+            # Check if form requires passcode (should be verified in session)
+            if form.passcode:
+                verified_forms = request.session.get('verified_forms', [])
+                if form.id not in verified_forms:
+                    return JsonResponse({'success': False, 'message': 'Passcode verification required'}, status=403)
+            
+            # Add to pending evaluations
+            pending, created = PendingEvaluation.objects.get_or_create(
+                student=profile,
+                form=form
+            )
+            
+            if created:
+                return JsonResponse({'success': True, 'message': f'"{form.title}" has been added to your pending evaluations!'})
+            else:
+                return JsonResponse({'success': True, 'message': f'"{form.title}" is already in your pending evaluations.'})
+        
+        # Handle GET request to list pending evaluations
         from datetime import datetime, timezone
         
         pending = PendingEvaluation.objects.filter(student=profile).select_related('form', 'form__created_by')

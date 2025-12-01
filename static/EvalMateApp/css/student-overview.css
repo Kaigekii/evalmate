@@ -595,7 +595,7 @@ body {
    ========================================== */
 
 .page-header {
-    background-color: var(--color-white);
+    background-color: var(--color-primary);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
@@ -609,13 +609,13 @@ body {
 .page-title {
     font-size: 1.75rem;
     font-weight: 700;
-    color: var(--color-text-primary);
+    color: var(--color-white);
     margin-bottom: var(--spacing-xs);
 }
 
 .page-subtitle {
     font-size: 0.875rem;
-    color: var(--color-text-secondary);
+    color: var(--color-white);
 }
 
 .page-header__stats {

@@ -472,12 +472,23 @@ def student_search_forms(request):
     else:
         qs = qs.none()
 
+    # Get forms already in student's pending evaluations
+    pending_form_ids = set(PendingEvaluation.objects.filter(
+        student=profile
+    ).values_list('form_id', flat=True))
+
     # Filter by privacy rules (exclude drafts already done above)
     visible = []
     for f in qs:
-        if f.privacy == 'institution' and f.institution and f.institution == profile.institution:
+        # Check if student's institution matches form's institution
+        if not f.institution or f.institution != profile.institution:
+            continue
+            
+        # Institution privacy - show to all students in same institution
+        if f.privacy == 'institution':
             visible.append(f)
-        elif f.privacy == 'institution_course' and f.institution and f.institution == profile.institution and q and q.lower() in (f.course_id or '').lower():
+        # Institution+Course privacy - show to students in same institution (already filtered by search query above)
+        elif f.privacy == 'institution_course':
             visible.append(f)
 
     for f in visible:
@@ -487,6 +498,7 @@ def student_search_forms(request):
             'course_id': f.course_id,
             'created_at': f.created_at.isoformat(),
             'requires_passcode': bool(f.passcode),
+            'is_pending': f.id in pending_form_ids,  # Flag if already in pending
         })
 
     return JsonResponse({'results': results})

@@ -103,10 +103,7 @@ function initDashboard() {
     updateCurrentDate();
     
     // Initialize search
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearch);
-    }
+    initSearch();
     
     // Notification bell
     document.getElementById('notificationBtn')?.addEventListener('click', () => {
@@ -919,61 +916,239 @@ function updateTopNavAvatar(imageUrl) {
 
 // ==================== Search ====================
 
+let searchTimeout = null;
+let currentSearchIndex = -1;
+
+function initSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const searchResults = document.getElementById('searchResults');
+
+    if (!searchInput) return;
+
+    // Input handler with debouncing
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        
+        // Show/hide clear button
+        if (query.length > 0) {
+            searchClear.classList.add('search-bar__clear--visible');
+        } else {
+            searchClear.classList.remove('search-bar__clear--visible');
+            hideSearchResults();
+            return;
+        }
+
+        // Debounce search
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+
+    // Clear button handler
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.classList.remove('search-bar__clear--visible');
+        hideSearchResults();
+        searchInput.focus();
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', handleSearchKeydown);
+
+    // Click outside to close
+    document.addEventListener('click', (e) => {
+        if (!searchInput.closest('.search-bar').contains(e.target)) {
+            hideSearchResults();
+        }
+    });
+}
+
 function handleSearch(event) {
+    // Keep for backward compatibility
     const query = event.target.value.trim();
-    const resultsContainerId = 'searchResultsContainer';
-    let container = document.getElementById(resultsContainerId);
-
-    if (!container) {
-        container = document.createElement('div');
-        container.id = resultsContainerId;
-        container.style.position = 'absolute';
-        container.style.zIndex = 1000;
-        container.style.background = '#fff';
-        container.style.border = '1px solid #e6e6e6';
-        container.style.width = '360px';
-        container.style.maxHeight = '300px';
-        container.style.overflow = 'auto';
-        container.style.boxShadow = '0 6px 20px rgba(0,0,0,0.08)';
-        const searchInput = document.getElementById('searchInput');
-        searchInput.parentNode.appendChild(container);
+    if (query.length > 0) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
     }
+}
 
-    if (query.length === 0) {
-        container.innerHTML = '';
-        container.style.display = 'none';
+async function performSearch(query) {
+    const searchResults = document.getElementById('searchResults');
+    
+    // Show loading state
+    searchResults.innerHTML = `
+        <div class="search-results__loading">
+            <i class="fas fa-spinner"></i>
+            <span>Searching...</span>
+        </div>
+    `;
+    searchResults.classList.add('search-results--visible');
+    currentSearchIndex = -1;
+
+    try {
+        // Search both forms and history in parallel
+        const [formsResponse, historyResponse] = await Promise.all([
+            fetch(`/forms/search/?q=${encodeURIComponent(query)}`),
+            fetch(`/api/student/evaluation-history/`)
+        ]);
+
+        const formsData = await formsResponse.json();
+        const historyData = await historyResponse.json();
+
+        // Filter history by query
+        const filteredHistory = historyData.history.filter(item => 
+            item.title.toLowerCase().includes(query.toLowerCase()) ||
+            item.course.toLowerCase().includes(query.toLowerCase()) ||
+            item.team_identifier.toLowerCase().includes(query.toLowerCase())
+        );
+
+        renderSearchResults(formsData.results || [], filteredHistory);
+    } catch (error) {
+        console.error('Search error:', error);
+        searchResults.innerHTML = `
+            <div class="search-results__empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading search results</p>
+            </div>
+        `;
+    }
+}
+
+function renderSearchResults(forms, history) {
+    const searchResults = document.getElementById('searchResults');
+    
+    if (forms.length === 0 && history.length === 0) {
+        searchResults.innerHTML = `
+            <div class="search-results__empty">
+                <i class="fas fa-search"></i>
+                <p>No results found</p>
+            </div>
+        `;
         return;
     }
 
-    // Fetch search results from server
-    fetch(`/forms/search/?q=${encodeURIComponent(query)}`)
-        .then(res => res.json())
-        .then(data => {
-            container.innerHTML = '';
-            if (!data.results || data.results.length === 0) {
-                container.innerHTML = '<div style="padding:12px;">No forms found.</div>';
-                container.style.display = 'block';
-                return;
-            }
+    let html = '';
 
-            data.results.forEach(f => {
-                const item = document.createElement('div');
-                item.className = 'search-result-item';
-                item.style.padding = '10px';
-                item.style.borderBottom = '1px solid #f0f0f0';
-                item.style.cursor = 'pointer';
-                item.innerHTML = `<strong>${escapeHtml(f.title)}</strong><div class="muted">Course: ${escapeHtml(f.course_id)}</div>`;
-                item.addEventListener('click', () => {
-                    // open form page
-                    window.location.href = `/forms/${f.id}/`;
-                });
-                container.appendChild(item);
-            });
-            container.style.display = 'block';
-        })
-        .catch(err => {
-            console.error('Search error', err);
+    // Render forms section
+    if (forms.length > 0) {
+        html += '<div class="search-results__section">';
+        html += '<div class="search-results__section-title">Available Forms</div>';
+        forms.forEach((form, index) => {
+            const isPending = form.is_pending;
+            const pendingClass = isPending ? ' search-result-item--already-pending' : '';
+            const badgeHtml = isPending 
+                ? `<span class="search-result-item__badge search-result-item__badge--already-pending">
+                       <i class="fas fa-check"></i> Already in Pending
+                   </span>`
+                : `<span class="search-result-item__badge search-result-item__badge--available">
+                       <i class="fas fa-plus-circle"></i> Available
+                   </span>`;
+            
+            html += `
+                <div class="search-result-item search-result-item--form${pendingClass}" data-index="${index}" data-type="form" data-form-id="${form.id}">
+                    <div class="search-result-item__icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="search-result-item__content">
+                        <div class="search-result-item__title">${escapeHtml(form.title)}</div>
+                        <div class="search-result-item__meta">
+                            <span><i class="fas fa-book"></i> ${escapeHtml(form.course_id)}</span>
+                            ${badgeHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
         });
+        html += '</div>';
+    }
+
+    // Render history section
+    if (history.length > 0) {
+        html += '<div class="search-results__section">';
+        html += '<div class="search-results__section-title">Completed Evaluations</div>';
+        history.forEach((item, index) => {
+            const date = new Date(item.submitted_at);
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            html += `
+                <div class="search-result-item search-result-item--history" data-index="${forms.length + index}" data-type="history">
+                    <div class="search-result-item__icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="search-result-item__content">
+                        <div class="search-result-item__title">${escapeHtml(item.title)}</div>
+                        <div class="search-result-item__meta">
+                            <span><i class="fas fa-book"></i> ${escapeHtml(item.course)}</span>
+                            <span><i class="fas fa-calendar"></i> ${formattedDate}</span>
+                            <span class="search-result-item__badge search-result-item__badge--completed">
+                                <i class="fas fa-check"></i> Completed
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    searchResults.innerHTML = html;
+}
+
+function handleSearchKeydown(event) {
+    const searchResults = document.getElementById('searchResults');
+    const items = searchResults.querySelectorAll('.search-result-item');
+    
+    if (items.length === 0) return;
+
+    switch(event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            currentSearchIndex = Math.min(currentSearchIndex + 1, items.length - 1);
+            updateSearchSelection(items);
+            break;
+        
+        case 'ArrowUp':
+            event.preventDefault();
+            currentSearchIndex = Math.max(currentSearchIndex - 1, -1);
+            updateSearchSelection(items);
+            break;
+        
+        case 'Escape':
+            event.preventDefault();
+            hideSearchResults();
+            document.getElementById('searchInput').blur();
+            break;
+        
+        case 'Enter':
+            event.preventDefault();
+            if (currentSearchIndex >= 0 && items[currentSearchIndex]) {
+                // Future: Navigate to selected item
+                console.log('Selected item:', currentSearchIndex);
+            }
+            break;
+    }
+}
+
+function updateSearchSelection(items) {
+    items.forEach((item, index) => {
+        if (index === currentSearchIndex) {
+            item.classList.add('search-result-item--active');
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            item.classList.remove('search-result-item--active');
+        }
+    });
+}
+
+function hideSearchResults() {
+    const searchResults = document.getElementById('searchResults');
+    searchResults.classList.remove('search-results--visible');
+    searchResults.innerHTML = '';
+    currentSearchIndex = -1;
 }
 
 function escapeHtml(unsafe) {

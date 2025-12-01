@@ -1452,16 +1452,82 @@ def api_get_evaluation_history(request):
         for response in responses:
             if response.form.id not in seen_forms:
                 seen_forms.add(response.form.id)
+                
+                # Count how many teammates evaluated for this form
+                teammate_count = FormResponse.objects.filter(
+                    form=response.form,
+                    submitted_by=profile,
+                    team_identifier=response.team_identifier
+                ).count()
+                
                 history_list.append({
+                    'response_id': response.id,
                     'form_id': response.form.id,
                     'title': response.form.title,
                     'course': response.form.course_id,
                     'description': response.form.description,
                     'submitted_at': response.submitted_at.isoformat(),
                     'team_identifier': response.team_identifier or 'N/A',
+                    'teammates_evaluated': teammate_count,
                 })
         
         return JsonResponse({'history': history_list})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_get_evaluation_detail(request, response_id):
+    """Get detailed evaluation data for a specific response"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get all responses for this form and team
+        first_response = FormResponse.objects.filter(
+            id=response_id,
+            submitted_by=profile
+        ).select_related('form').first()
+        
+        if not first_response:
+            return JsonResponse({'error': 'Evaluation not found'}, status=404)
+        
+        # Get all responses for this form and team identifier
+        all_responses = FormResponse.objects.filter(
+            form=first_response.form,
+            submitted_by=profile,
+            team_identifier=first_response.team_identifier
+        ).prefetch_related('answers').order_by('teammate_name')
+        
+        # Build response data
+        teammates_data = []
+        for resp in all_responses:
+            answers_data = []
+            for answer in resp.answers.all():
+                answers_data.append({
+                    'question': answer.question,
+                    'answer': answer.answer
+                })
+            
+            teammates_data.append({
+                'teammate_name': resp.teammate_name or 'Unknown',
+                'submitted_at': resp.submitted_at.isoformat(),
+                'answers': answers_data
+            })
+        
+        return JsonResponse({
+            'form_title': first_response.form.title,
+            'course': first_response.form.course_id,
+            'description': first_response.form.description,
+            'team_identifier': first_response.team_identifier or 'N/A',
+            'teammates': teammates_data,
+            'total_teammates': len(teammates_data)
+        })
+    
     except Exception as e:
         import traceback
         print(traceback.format_exc())

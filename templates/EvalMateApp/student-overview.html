@@ -492,6 +492,24 @@
         </main>
     </div>
 
+    <!-- Evaluation Details Modal -->
+    <div class="modal-overlay" id="evaluationModal" onclick="if(event.target === this) closeEvaluationModal()">
+        <div class="modal">
+            <div class="modal__header">
+                <h2 class="modal__title" id="evaluationModalTitle">Evaluation Details</h2>
+                <button class="modal__close" onclick="closeEvaluationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal__body" id="evaluationModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeEvaluationModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="{% static 'EvalMateApp/js/student-overview.js' %}?v={{ timestamp|default:'1' }}"></script>
     <script>

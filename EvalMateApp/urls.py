@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/student/pending-evaluations/', views.api_get_pending_evaluations, name='api_get_pending_evaluations'),
     path('api/student/pending-evaluations/<int:pending_id>/remove/', views.api_remove_pending_evaluation, name='api_remove_pending_evaluation'),
     path('api/student/evaluation-history/', views.api_get_evaluation_history, name='api_get_evaluation_history'),
+    path('api/student/evaluation-history/<int:response_id>/', views.api_get_evaluation_detail, name='api_get_evaluation_detail'),
     
     # Draft API endpoints
     path('api/student/draft/save/', views.api_save_draft, name='api_save_draft'),

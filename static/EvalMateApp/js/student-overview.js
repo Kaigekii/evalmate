@@ -560,6 +560,9 @@ function createHistoryCard(item) {
     const description = item.description || 'No description';
     const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
     
+    // Teammates evaluated text
+    const teammatesText = item.teammates_evaluated ? `${item.teammates_evaluated} teammate${item.teammates_evaluated !== 1 ? 's' : ''}` : 'N/A';
+    
     card.innerHTML = `
         <div class="history-card__header">
             <div class="history-card__icon">
@@ -574,6 +577,7 @@ function createHistoryCard(item) {
             <div class="history-card__info">
                 <span class="info-item"><i class="fas fa-book"></i> <strong>Course:</strong> ${escapeHtml(item.course)}</span>
                 <span class="info-item"><i class="fas fa-users"></i> <strong>Team:</strong> ${escapeHtml(item.team_identifier)}</span>
+                <span class="info-item"><i class="fas fa-user-check"></i> <strong>Evaluated:</strong> ${teammatesText}</span>
             </div>
             <p class="history-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
@@ -581,8 +585,16 @@ function createHistoryCard(item) {
             <span class="history-card__badge">
                 <i class="fas fa-calendar-check"></i> Completed
             </span>
+            <button class="btn--view-details" data-response-id="${item.response_id}">
+                <i class="fas fa-eye"></i> View Details
+            </button>
         </div>
     `;
+    
+    // Add click handler for view details button
+    const viewBtn = card.querySelector('.btn--view-details');
+    viewBtn.addEventListener('click', () => openEvaluationModal(item.response_id));
+    
     return card;
 }
 
@@ -1050,6 +1062,99 @@ function showSignOutModal(logoutUrl) {
             setTimeout(() => modal.remove(), 300);
         }
     });
+}
+
+// ==================== Modal for Evaluation Details ====================
+
+async function openEvaluationModal(responseId) {
+    const modalOverlay = document.getElementById('evaluationModal');
+    const modalBody = document.getElementById('evaluationModalBody');
+    
+    // Show modal with loading state
+    modalOverlay.classList.add('modal-overlay--active');
+    modalBody.innerHTML = '<div class="modal__loading"><i class="fas fa-spinner"></i><p>Loading evaluation details...</p></div>';
+    
+    try {
+        const response = await fetch(`/api/student/evaluation-history/${responseId}/`);
+        if (!response.ok) {
+            throw new Error('Failed to load evaluation details');
+        }
+        
+        const data = await response.json();
+        renderEvaluationDetails(data);
+    } catch (error) {
+        console.error('Error loading evaluation details:', error);
+        modalBody.innerHTML = '<div class="modal__loading"><p style="color: #e74c3c;">Failed to load evaluation details. Please try again.</p></div>';
+    }
+}
+
+function renderEvaluationDetails(data) {
+    const modalBody = document.getElementById('evaluationModalBody');
+    const modalTitle = document.getElementById('evaluationModalTitle');
+    
+    // Set modal title
+    modalTitle.textContent = data.form_title;
+    
+    // Build teammates sections HTML
+    let teammatesHTML = '';
+    data.teammates.forEach((teammate, index) => {
+        const submittedDate = new Date(teammate.submitted_at);
+        const formattedDate = submittedDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        let answersHTML = '';
+        teammate.answers.forEach(answer => {
+            answersHTML += `
+                <div class="answer-item">
+                    <div class="answer-question">${escapeHtml(answer.question)}</div>
+                    <div class="answer-text">${escapeHtml(answer.answer || 'No answer provided')}</div>
+                </div>
+            `;
+        });
+        
+        teammatesHTML += `
+            <div class="teammate-section">
+                <div class="teammate-header">
+                    <i class="fas fa-user-circle"></i>
+                    <h3 class="teammate-name">${escapeHtml(teammate.teammate_name)}</h3>
+                    <span class="teammate-date">${formattedDate}</span>
+                </div>
+                ${answersHTML}
+            </div>
+        `;
+    });
+    
+    // Render full modal content
+    modalBody.innerHTML = `
+        <div class="modal__meta">
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Course</div>
+                <div class="modal__meta-value">${escapeHtml(data.course)}</div>
+            </div>
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Team</div>
+                <div class="modal__meta-value">${escapeHtml(data.team_identifier)}</div>
+            </div>
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Teammates Evaluated</div>
+                <div class="modal__meta-value">${data.total_teammates}</div>
+            </div>
+        </div>
+        
+        ${data.description ? `<div class="modal__description">${escapeHtml(data.description)}</div>` : ''}
+        
+        ${teammatesHTML}
+    `;
+}
+
+function closeEvaluationModal() {
+    const modalOverlay = document.getElementById('evaluationModal');
+    modalOverlay.classList.remove('modal-overlay--active');
 }
 
 // Initialize sign out when DOM is ready

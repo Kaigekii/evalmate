@@ -7,6 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initSPA();
     initDashboard();
     loadStats();
+    
+    // Check if we need to show passcode modal (from direct URL navigation)
+    if (window.passcodeModalData && window.passcodeModalData.form_id) {
+        openPasscodeModal(
+            window.passcodeModalData.form_id,
+            window.passcodeModalData.form_title,
+            window.passcodeModalData.form_description
+        );
+    }
 });
 
 // ==================== SPA Navigation ====================
@@ -463,6 +472,38 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification--${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        animation: slideInRight 0.3s ease;
+        max-width: 400px;
+        font-size: 14px;
+    `;
+    notification.textContent = message;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
 }
 
 // ==================== History Section ====================
@@ -958,7 +999,7 @@ function initSearch() {
     searchInput.addEventListener('keydown', handleSearchKeydown);
 
     // Click handler for search results (using event delegation)
-    searchResults.addEventListener('click', (e) => {
+    searchResults.addEventListener('click', async (e) => {
         e.stopPropagation(); // Prevent click outside handler from firing
         
         const resultItem = e.target.closest('.search-result-item');
@@ -968,9 +1009,53 @@ function initSearch() {
         
         if (type === 'form') {
             const formId = resultItem.dataset.formId;
-            if (formId) {
-                // Navigate to form view (passcode page if required)
-                window.location.href = `/forms/${formId}/`;
+            if (!formId) return;
+            
+            // Get form data from the rendered search results
+            const formData = window.searchFormData?.find(f => f.id == formId);
+            if (!formData) return;
+            
+            // Check if already in pending - just show message, don't add again
+            if (formData.is_pending) {
+                showNotification('This form is already in your pending evaluations', 'info');
+                return;
+            }
+            
+            const formTitle = resultItem.querySelector('.search-result-item__title').textContent;
+            
+            if (formData.requires_passcode) {
+                // Show passcode modal
+                openPasscodeModal(formId, formTitle);
+            } else {
+                // No passcode required, add directly to pending
+                try {
+                    const response = await fetch('/api/student/pending-evaluations/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ form_id: formId })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                        // Reload pending evaluations
+                        loadPendingEvaluations();
+                        // Hide search results
+                        hideSearchResults();
+                        // Clear search input
+                        searchInput.value = '';
+                        searchClear.classList.remove('search-bar__clear--visible');
+                    } else {
+                        showNotification(data.message || 'Failed to add form', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error adding form to pending:', error);
+                    showNotification('An error occurred. Please try again.', 'error');
+                }
             }
         } else if (type === 'history') {
             // Open history detail modal
@@ -980,9 +1065,13 @@ function initSearch() {
         }
     });
 
-    // Click outside to close
+    // Click outside to close (but not when clicking inside results)
     document.addEventListener('click', (e) => {
-        if (!searchInput.closest('.search-bar').contains(e.target)) {
+        const searchBar = searchInput.closest('.search-bar');
+        const resultsEl = document.getElementById('searchResults');
+        const clickedInsideBar = searchBar && searchBar.contains(e.target);
+        const clickedInsideResults = resultsEl && resultsEl.contains(e.target);
+        if (!clickedInsideBar && !clickedInsideResults) {
             hideSearchResults();
         }
     });
@@ -1021,6 +1110,9 @@ async function performSearch(query) {
 
         const formsData = await formsResponse.json();
         const historyData = await historyResponse.json();
+
+        // Store forms data globally for passcode checking
+        window.searchFormData = formsData.results || [];
 
         // Filter history by query
         const filteredHistory = historyData.history.filter(item => 
@@ -1173,6 +1265,147 @@ function hideSearchResults() {
     searchResults.innerHTML = '';
     currentSearchIndex = -1;
 }
+
+// ==================== PASSCODE MODAL FUNCTIONS ====================
+
+let currentFormId = null;
+
+function openPasscodeModal(formId, formTitle) {
+    currentFormId = formId;
+    const modal = document.getElementById('passcodeModal');
+    const title = document.getElementById('passcodeModalTitle');
+    const description = document.getElementById('passcodeModalDescription');
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    
+    title.textContent = formTitle || 'Secure Access Required';
+    description.textContent = 'This evaluation requires a passcode to access.';
+    input.value = '';
+    input.classList.remove('input-error');
+    error.style.display = 'none';
+    
+    modal.classList.add('modal-overlay--active');
+    
+    // Auto-focus input after animation
+    setTimeout(() => {
+        input.focus();
+    }, 150);
+}
+
+function closePasscodeModal() {
+    const modal = document.getElementById('passcodeModal');
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    
+    modal.classList.remove('modal-overlay--active');
+    input.value = '';
+    input.classList.remove('input-error');
+    error.style.display = 'none';
+    currentFormId = null;
+}
+
+function togglePasscodeVisibility() {
+    const input = document.getElementById('passcodeInput');
+    const icon = document.getElementById('passcodeToggleIcon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+async function submitPasscode(event) {
+    event.preventDefault();
+    
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    const errorText = document.getElementById('passcodeErrorText');
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const passcode = input.value.trim();
+    
+    // Remove error state
+    input.classList.remove('input-error');
+    
+    if (!passcode || passcode.length !== 6) {
+        showPasscodeError('Please enter a 6-digit passcode.');
+        input.classList.add('input-error');
+        return;
+    }
+    
+    // Disable submit button and show loading
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Verifying...</span>';
+    error.style.display = 'none';
+    
+    try {
+        const formData = new FormData();
+        formData.append('passcode', passcode);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        const response = await fetch(`/forms/${currentFormId}/access/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Success - close modal and reload pending evaluations
+            closePasscodeModal();
+            showNotification(data.message || 'Form added to pending evaluations!', 'success');
+            // Reload pending evaluations
+            loadPendingEvaluations();
+            // Hide search results and clear search
+            hideSearchResults();
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+            if (searchInput) {
+                searchInput.value = '';
+                searchClear?.classList.remove('search-bar__clear--visible');
+            }
+        } else {
+            // Invalid passcode
+            showPasscodeError(data.error || 'Invalid passcode. Please try again.');
+            input.classList.add('input-error');
+            input.value = '';
+            input.focus();
+        }
+    } catch (error) {
+        console.error('Error submitting passcode:', error);
+        showPasscodeError('An error occurred. Please try again.');
+        input.classList.add('input-error');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verify & Continue</span>';
+    }
+}
+
+function showPasscodeError(message) {
+    const error = document.getElementById('passcodeError');
+    const errorText = document.getElementById('passcodeErrorText');
+    
+    errorText.textContent = message;
+    error.style.display = 'flex';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const passcodeModal = document.getElementById('passcodeModal');
+        if (passcodeModal.classList.contains('modal-overlay--active')) {
+            closePasscodeModal();
+        }
+    }
+});
 
 function escapeHtml(unsafe) {
     return unsafe

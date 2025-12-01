@@ -957,6 +957,29 @@ function initSearch() {
     // Keyboard navigation
     searchInput.addEventListener('keydown', handleSearchKeydown);
 
+    // Click handler for search results (using event delegation)
+    searchResults.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent click outside handler from firing
+        
+        const resultItem = e.target.closest('.search-result-item');
+        if (!resultItem) return;
+
+        const type = resultItem.dataset.type;
+        
+        if (type === 'form') {
+            const formId = resultItem.dataset.formId;
+            if (formId) {
+                // Navigate to form view (passcode page if required)
+                window.location.href = `/forms/${formId}/`;
+            }
+        } else if (type === 'history') {
+            // Open history detail modal
+            const index = parseInt(resultItem.dataset.index);
+            // You can implement modal opening here if needed
+            console.log('History item clicked:', index);
+        }
+    });
+
     // Click outside to close
     document.addEventListener('click', (e) => {
         if (!searchInput.closest('.search-bar').contains(e.target)) {

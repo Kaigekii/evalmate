@@ -220,7 +220,15 @@
                     </div>
 
                     <!-- Evaluations Container -->
-                    <div class="evaluations-container">
+                    <div class="evaluations-container" style="position: relative;">
+                        <!-- Loading Overlay -->
+                        <div class="loading-overlay" id="pendingLoadingOverlay" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading evaluations...</p>
+                            </div>
+                        </div>
+                        
                         <!-- Empty State -->
                         <div class="empty-state" id="emptyStatePending">
                             <div class="empty-state__icon">
@@ -256,7 +264,15 @@
                     </div>
 
                     <!-- History Container -->
-                    <div class="history-container">
+                    <div class="history-container" style="position: relative;">
+                        <!-- Loading Overlay -->
+                        <div class="loading-overlay" id="historyLoadingOverlay" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading history...</p>
+                            </div>
+                        </div>
+                        
                         <!-- Empty State -->
                         <div class="empty-state" id="emptyStateHistory">
                             <div class="empty-state__icon">

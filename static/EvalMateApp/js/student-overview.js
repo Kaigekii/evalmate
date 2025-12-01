@@ -172,17 +172,24 @@ async function loadStats() {
 
 // ==================== Pending Evaluations Section ====================
 
+// Track if listeners are already attached to prevent duplicates
+let pendingFiltersInitialized = false;
+
 function loadPendingEvaluations(filter = 'all') {
-    // Initialize filters
-    const filterButtons = document.querySelectorAll('#pendingSection .filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleFilterClick);
-    });
-    
-    // Initialize sort
-    const sortSelect = document.getElementById('sortSelect');
-    if (sortSelect) {
-        sortSelect.addEventListener('change', handleSortChange);
+    // Initialize filters only once
+    if (!pendingFiltersInitialized) {
+        const filterButtons = document.querySelectorAll('#pendingSection .filter-btn');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', handleFilterClick);
+        });
+        
+        // Initialize sort
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', handleSortChange);
+        }
+        
+        pendingFiltersInitialized = true;
     }
     
     // Load evaluations
@@ -190,18 +197,35 @@ function loadPendingEvaluations(filter = 'all') {
 }
 
 function handleFilterClick(event) {
+    const filterButton = event.target;
+    
+    // Prevent multiple clicks during loading
+    if (filterButton.disabled) return;
+    
     // Update UI immediately
     document.querySelectorAll('#pendingSection .filter-btn').forEach(btn => {
         btn.classList.remove('filter-btn--active');
     });
     
-    event.target.classList.add('filter-btn--active');
-    const filter = event.target.dataset.filter;
+    filterButton.classList.add('filter-btn--active');
+    const filter = filterButton.dataset.filter;
     
     // If data already loaded, filter instantly without re-fetching
     if (allEvaluations.length > 0) {
+        const loadingOverlay = document.getElementById('pendingLoadingOverlay');
+        
+        // Show brief loading state for visual feedback
+        showFilterLoadingState('#pendingSection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        
         currentFilter = filter;
-        applyFilterAndSort();
+        
+        // Use timeout to allow loading overlay to display smoothly
+        setTimeout(() => {
+            applyFilterAndSort();
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            hideFilterLoadingState('#pendingSection');
+        }, 150);
     } else {
         // First load - fetch data
         fetchPendingEvaluations(filter);
@@ -219,19 +243,54 @@ let allEvaluations = [];
 let currentFilter = 'all';
 let currentSort = 'due_date';
 
+// Helper functions for filter loading states
+function showFilterLoadingState(sectionSelector) {
+    const section = document.querySelector(sectionSelector);
+    if (!section) return;
+    
+    const filterButtons = section.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+    });
+    
+    const sortSelect = section.querySelector('.sort-select');
+    if (sortSelect) {
+        sortSelect.disabled = true;
+        sortSelect.style.opacity = '0.6';
+    }
+}
+
+function hideFilterLoadingState(sectionSelector) {
+    const section = document.querySelector(sectionSelector);
+    if (!section) return;
+    
+    const filterButtons = section.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    });
+    
+    const sortSelect = section.querySelector('.sort-select');
+    if (sortSelect) {
+        sortSelect.disabled = false;
+        sortSelect.style.opacity = '1';
+    }
+}
+
 async function fetchPendingEvaluations(filter = 'all') {
     const evaluationsList = document.getElementById('evaluationsList');
     const emptyState = document.getElementById('emptyStatePending');
+    const loadingOverlay = document.getElementById('pendingLoadingOverlay');
     
     try {
         currentFilter = filter;
         
-        // Show loading state
-        if (evaluationsList) {
-            evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Loading evaluations...</p></div>';
-            evaluationsList.style.display = 'block';
-        }
-        if (emptyState) emptyState.style.display = 'none';
+        // Show loading overlay and disable filters
+        showFilterLoadingState('#pendingSection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
         
         const response = await fetch('/api/student/pending-evaluations/', {
             cache: 'no-cache'
@@ -244,9 +303,12 @@ async function fetchPendingEvaluations(filter = 'all') {
         const data = await response.json();
         allEvaluations = data.pending_evaluations || [];
         
-        // Apply filter and render immediately
+        // Apply filter and render
         requestAnimationFrame(() => {
             applyFilterAndSort();
+            // Hide loading overlay after rendering
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            hideFilterLoadingState('#pendingSection');
         });
         
         // Update stats
@@ -261,9 +323,15 @@ async function fetchPendingEvaluations(filter = 'all') {
         if (pendingCountEl) pendingCountEl.textContent = allEvaluations.length;
     } catch (error) {
         console.error('Error loading evaluations:', error);
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#pendingSection');
+        
+        // Show error in evaluations list
         if (evaluationsList) {
             evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Failed to load evaluations. Please refresh the page.</p></div>';
+            evaluationsList.style.display = 'block';
         }
+        if (emptyState) emptyState.style.display = 'none';
     }
 }
 
@@ -508,55 +576,78 @@ function showNotification(message, type = 'info') {
 
 // ==================== History Section ====================
 
+// Track if listeners are already attached to prevent duplicates
+let historyFiltersInitialized = false;
+
 function loadHistory(filter = 'all') {
-    // Initialize filter buttons
-    const filterButtons = document.querySelectorAll('#historySection .filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleHistoryFilterClick);
-    });
+    // Initialize filter buttons only once
+    if (!historyFiltersInitialized) {
+        const filterButtons = document.querySelectorAll('#historySection .filter-btn');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', handleHistoryFilterClick);
+        });
+        historyFiltersInitialized = true;
+    }
     
     // Fetch history
     fetchHistory(filter);
 }
 
 function handleHistoryFilterClick(event) {
+    const filterButton = event.target;
+    
+    // Prevent multiple clicks during loading
+    if (filterButton.disabled) return;
+    
+    // Update UI immediately
     document.querySelectorAll('#historySection .filter-btn').forEach(btn => {
         btn.classList.remove('filter-btn--active');
     });
     
-    event.target.classList.add('filter-btn--active');
-    const filter = event.target.dataset.filter;
+    filterButton.classList.add('filter-btn--active');
+    const filter = filterButton.dataset.filter;
+    
+    // Show loading state and fetch
     fetchHistory(filter);
 }
 
 async function fetchHistory(filter = 'all') {
+    const historyList = document.getElementById('historyList');
+    const emptyState = document.getElementById('emptyStateHistory');
+    const loadingOverlay = document.getElementById('historyLoadingOverlay');
+    
     try {
-        const response = await fetch('/api/student/evaluation-history/');
+        // Show loading overlay and disable filters
+        showFilterLoadingState('#historySection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        
+        const response = await fetch('/api/student/evaluation-history/', {
+            cache: 'no-cache'
+        });
+        
         if (!response.ok) {
             throw new Error('Failed to load evaluation history');
         }
         
         const data = await response.json();
-        let history = data.history || [];
+        const allHistory = data.history || [];
+        let history = allHistory;
         
         // Apply filter
         if (filter === 'recent') {
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            history = history.filter(item => new Date(item.submitted_at) >= sevenDaysAgo);
+            history = allHistory.filter(item => new Date(item.submitted_at) >= sevenDaysAgo);
         } else if (filter === 'by-course') {
             // Group by course (already sorted by date in API)
-            history = history;
+            history = allHistory;
         }
         
-        // Update completed count
+        // Update completed count - always show total, not filtered
         const completedCountEl = document.getElementById('completedCount');
-        if (completedCountEl) completedCountEl.textContent = history.length;
+        if (completedCountEl) completedCountEl.textContent = allHistory.length;
         
         // Update UI
-        const emptyState = document.getElementById('emptyStateHistory');
-        const historyList = document.getElementById('historyList');
-        
         if (history.length === 0) {
             emptyState.style.display = 'flex';
             historyList.style.display = 'none';
@@ -565,19 +656,39 @@ async function fetchHistory(filter = 'all') {
             historyList.style.display = 'block';
             renderHistory(history);
         }
+        
+        // Hide loading overlay
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#historySection');
     } catch (error) {
         console.error('Error loading history:', error);
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#historySection');
+        
+        // Show error in history list
+        if (historyList) {
+            historyList.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Failed to load history. Please refresh the page.</p></div>';
+            historyList.style.display = 'block';
+        }
+        if (emptyState) emptyState.style.display = 'none';
     }
 }
 
 function renderHistory(history) {
     const historyList = document.getElementById('historyList');
-    historyList.innerHTML = '';
+    if (!historyList) return;
+    
+    // Use DocumentFragment for optimized batch DOM update
+    const fragment = document.createDocumentFragment();
     
     history.forEach(item => {
         const card = createHistoryCard(item);
-        historyList.appendChild(card);
+        fragment.appendChild(card);
     });
+    
+    // Single DOM update for better performance
+    historyList.innerHTML = '';
+    historyList.appendChild(fragment);
 }
 
 function createHistoryCard(item) {

@@ -944,13 +944,19 @@ body {
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.2s ease;
     font-family: 'Poppins', sans-serif;
+    position: relative;
 }
 
-.filter-btn:hover {
+.filter-btn:hover:not(:disabled) {
     background-color: var(--color-hover);
     color: var(--color-text-primary);
+}
+
+.filter-btn:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .filter-btn--active {
@@ -976,6 +982,40 @@ body {
     padding: var(--spacing-lg);
     border: 1px solid var(--color-border);
     min-height: 300px;
+    position: relative;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-lg);
+    z-index: 10;
+    backdrop-filter: blur(2px);
+}
+
+.loading-spinner {
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.loading-spinner i {
+    font-size: 2.5rem;
+    color: var(--color-dark);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.loading-spinner p {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0;
 }
 
 .evaluations-list,

@@ -632,8 +632,6 @@ function initProfileForms() {
         setupAcademicFormEnhancements(academicForm);
     }
     
-
-    
 }
 
 async function handlePersonalInfoSubmit(event) {

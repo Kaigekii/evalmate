@@ -213,10 +213,16 @@ def student_dashboard_view(request):
         return redirect('login')
     
     import time
+    import json
+    
+    # Check if we need to show passcode modal
+    show_passcode_modal = request.session.pop('show_passcode_modal', None)
+    
     context = {
         'user': request.user,
         'profile': profile,
-        'timestamp': int(time.time())  # Cache busting
+        'timestamp': int(time.time()),  # Cache busting
+        'show_passcode_modal': json.dumps(show_passcode_modal) if show_passcode_modal else 'null'
     }
     return render(request, 'EvalMateApp/student-overview.html', context)
 
@@ -594,6 +600,11 @@ def student_search_forms(request):
     else:
         qs = qs.none()
 
+    # Get forms already in student's pending evaluations
+    pending_form_ids = set(PendingEvaluation.objects.filter(
+        student=profile
+    ).values_list('form_id', flat=True))
+
     # Filter by privacy rules (exclude drafts already done above)
     visible = []
     for f in qs:
@@ -613,6 +624,7 @@ def student_search_forms(request):
             'course_id': f.course_id,
             'created_at': f.created_at.isoformat(),
             'requires_passcode': bool(f.passcode),
+            'is_pending': f.id in pending_form_ids,  # Flag if already in pending
         })
 
     return JsonResponse({'results': results})
@@ -666,8 +678,16 @@ def student_form_view(request, form_id):
     if form.passcode:
         verified_forms = request.session.get('verified_forms', [])
         if form.id not in verified_forms:
-            # Passcode not yet verified - show passcode page
-            return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
+            # Passcode not yet verified - redirect to dashboard with modal trigger
+            # Store form info in session to trigger modal
+            request.session['show_passcode_modal'] = {
+                'form_id': form.id,
+                'form_title': form.title,
+                'form_description': form.description or '',
+                'requires_passcode': True
+            }
+            messages.info(request, 'This form requires a passcode to access.')
+            return redirect('student_dashboard')
     
     # No passcode required OR already verified - add directly to pending evaluations
     pending, created = PendingEvaluation.objects.get_or_create(
@@ -727,6 +747,9 @@ def student_form_access(request, form_id):
     
     # Check passcode if required
     if form.passcode and entered != form.passcode:
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'error': 'Incorrect passcode'}, status=400)
         messages.error(request, 'Incorrect passcode.')
         return render(request, 'EvalMateApp/student_form_passcode.html', {'form': form})
     
@@ -743,6 +766,14 @@ def student_form_access(request, form_id):
         student=profile,
         form=form
     )
+    
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'message': f'"{form.title}" has been added to your pending evaluations!',
+            'created': created
+        })
     
     if created:
         messages.success(request, f'"{form.title}" has been added to your pending evaluations!')
@@ -1593,12 +1624,51 @@ def student_eval_submit_evaluation(request, form_id):
 @never_cache
 @login_required
 def api_get_pending_evaluations(request):
-    """Get list of pending evaluations for student"""
+    """Get list of pending evaluations for student or add new form to pending"""
     try:
         profile = request.user.profile
         if profile.account_type != 'student':
             return JsonResponse({'error': 'Access denied'}, status=403)
         
+        # Handle POST request to add form to pending
+        if request.method == 'POST':
+            import json
+            data = json.loads(request.body)
+            form_id = data.get('form_id')
+            
+            if not form_id:
+                return JsonResponse({'success': False, 'message': 'Form ID is required'}, status=400)
+            
+            form = get_object_or_404(FormTemplate, id=form_id)
+            
+            # Check privacy permissions
+            allowed = False
+            if form.privacy == 'institution' and form.institution == profile.institution:
+                allowed = True
+            elif form.privacy == 'institution_course' and form.institution == profile.institution and form.course_id:
+                allowed = True
+            
+            if not allowed:
+                return JsonResponse({'success': False, 'message': 'This form is not available for your institution or course.'}, status=403)
+            
+            # Check if form requires passcode (should be verified in session)
+            if form.passcode:
+                verified_forms = request.session.get('verified_forms', [])
+                if form.id not in verified_forms:
+                    return JsonResponse({'success': False, 'message': 'Passcode verification required'}, status=403)
+            
+            # Add to pending evaluations
+            pending, created = PendingEvaluation.objects.get_or_create(
+                student=profile,
+                form=form
+            )
+            
+            if created:
+                return JsonResponse({'success': True, 'message': f'"{form.title}" has been added to your pending evaluations!'})
+            else:
+                return JsonResponse({'success': True, 'message': f'"{form.title}" is already in your pending evaluations.'})
+        
+        # Handle GET request to list pending evaluations
         from datetime import datetime, timezone
         
         pending = PendingEvaluation.objects.filter(student=profile).select_related('form', 'form__created_by')
@@ -1712,16 +1782,82 @@ def api_get_evaluation_history(request):
         for response in responses:
             if response.form.id not in seen_forms:
                 seen_forms.add(response.form.id)
+                
+                # Count how many teammates evaluated for this form
+                teammate_count = FormResponse.objects.filter(
+                    form=response.form,
+                    submitted_by=profile,
+                    team_identifier=response.team_identifier
+                ).count()
+                
                 history_list.append({
+                    'response_id': response.id,
                     'form_id': response.form.id,
                     'title': response.form.title,
                     'course': response.form.course_id,
                     'description': response.form.description,
                     'submitted_at': response.submitted_at.isoformat(),
                     'team_identifier': response.team_identifier or 'N/A',
+                    'teammates_evaluated': teammate_count,
                 })
         
         return JsonResponse({'history': history_list})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_get_evaluation_detail(request, response_id):
+    """Get detailed evaluation data for a specific response"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'student':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get all responses for this form and team
+        first_response = FormResponse.objects.filter(
+            id=response_id,
+            submitted_by=profile
+        ).select_related('form').first()
+        
+        if not first_response:
+            return JsonResponse({'error': 'Evaluation not found'}, status=404)
+        
+        # Get all responses for this form and team identifier
+        all_responses = FormResponse.objects.filter(
+            form=first_response.form,
+            submitted_by=profile,
+            team_identifier=first_response.team_identifier
+        ).prefetch_related('answers').order_by('teammate_name')
+        
+        # Build response data
+        teammates_data = []
+        for resp in all_responses:
+            answers_data = []
+            for answer in resp.answers.all():
+                answers_data.append({
+                    'question': answer.question,
+                    'answer': answer.answer
+                })
+            
+            teammates_data.append({
+                'teammate_name': resp.teammate_name or 'Unknown',
+                'submitted_at': resp.submitted_at.isoformat(),
+                'answers': answers_data
+            })
+        
+        return JsonResponse({
+            'form_title': first_response.form.title,
+            'course': first_response.form.course_id,
+            'description': first_response.form.description,
+            'team_identifier': first_response.team_identifier or 'N/A',
+            'teammates': teammates_data,
+            'total_teammates': len(teammates_data)
+        })
+    
     except Exception as e:
         import traceback
         print(traceback.format_exc())

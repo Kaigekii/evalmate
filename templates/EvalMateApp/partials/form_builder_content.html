@@ -1,0 +1,401 @@
+{% load static %}
+{% csrf_token %}
+<div class="form-builder">
+    <!-- Header Section - Reports Style -->
+    <div class="reports-hero form-builder__hero">
+        <div class="reports-hero__content">
+            <div class="reports-hero__icon">
+                <i class="fas fa-paint-brush"></i>
+            </div>
+            <div>
+                <h1 class="reports-hero__title">Form Builder</h1>
+                <p class="reports-hero__subtitle">Create custom evaluation forms for your students</p>
+            </div>
+        </div>
+        <div class="reports-hero__stats" style="gap: 1rem;">
+            <button class="btn btn-hero-primary" id="publishForm">
+                <i class="fas fa-paper-plane"></i>
+                Publish Form
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="form-builder__tabs">
+        <nav class="tabs">
+            <button class="tab active" data-tab="design">
+                <i class="fas fa-paint-brush"></i>
+                Design
+            </button>
+            <button class="tab" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                Settings
+            </button>
+            <button class="tab" data-tab="preview">
+                <i class="fas fa-eye"></i>
+                Preview
+            </button>
+        </nav>
+    </div>
+
+    <!-- Form Content -->
+    <div class="form-builder__content">
+        <!-- Design Tab Content -->
+        <div class="tab-content" id="designTabContent">
+            <!-- Left Panel: Form Structure -->
+            <div class="form-structure">
+                <div class="form-structure__header">
+                    <input type="text" class="form-title" placeholder="Enter form title" value="Peer Evaluation Form">
+                    <textarea class="form-description" placeholder="Enter form description">Form your team and evaluate each teammate based on the criteria below.</textarea>
+                </div>
+
+                <div class="form-sections" id="formSections">
+                    <!-- Sections will be added here dynamically -->
+                </div>
+
+                <button class="btn btn-accent btn-add-section" id="addSection">
+                    <i class="fas fa-plus"></i>
+                    Add Section
+                </button>
+            </div>
+
+            <!-- Right Panel: Editor -->
+            <div class="editor-panel" id="editorPanel">
+                <div class="editor-panel__default" id="defaultEditor">
+                    <div class="editor-icon">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h2>Form Builder</h2>
+                    <p>Select a section or question from the left panel to start editing.</p>
+                </div>
+
+                <!-- Section Editor (Hidden by default) -->
+                <div class="editor-panel__section" id="sectionEditor" style="display: none;">
+                    <h2>Section Editor</h2>
+                    <div class="form-group">
+                        <label for="sectionTitle">Section Title</label>
+                        <input type="text" id="sectionTitle" placeholder="Enter section title">
+                    </div>
+                    <div class="form-group">
+                        <label for="sectionDescription">Description (Optional)</label>
+                        <textarea id="sectionDescription" placeholder="Add description"></textarea>
+                    </div>
+                </div>
+
+                <!-- Question Editor (Hidden by default) -->
+                <div class="editor-panel__question" id="questionEditor" style="display: none;">
+                    <h2>Question Editor</h2>
+                    <div class="form-group">
+                        <label for="questionText">Question Text</label>
+                        <input type="text" id="questionText" placeholder="Enter your question">
+                    </div>
+                    <div class="form-group">
+                        <label for="questionDescription">Description (Optional)</label>
+                        <textarea id="questionDescription" placeholder="Add description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="requiredQuestion">
+                            Required question
+                        </label>
+                    </div>
+
+                    <!-- Rating Scale Options -->
+                    <div id="ratingScaleOptions" class="question-options" style="display: none;">
+                        <div class="form-group">
+                            <label for="scaleMax">Rating Scale</label>
+                            <select id="scaleMax">
+                                <option value="5">5</option>
+                                <option value="7">7</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scaleLabels">Scale Labels</label>
+                            <input type="text" id="scaleLabels" 
+                                   placeholder="Label 1, Label 2, Label 3, Label 4, Label 5">
+                            <small>Separate labels with commas. Must match the number of rating scale points.</small>
+                            <small id="labelError" class="error-message" style="display: none;"></small>
+                        </div>
+                    </div>
+
+                    <!-- Text Response Options -->
+                    <div id="textResponseOptions" class="question-options" style="display: none;">
+                        <div class="form-group">
+                            <label for="characterLimit">Character Limit</label>
+                            <input type="number" id="characterLimit" value="500">
+                        </div>
+                        <div class="form-group">
+                            <label for="placeholder">Placeholder Text</label>
+                            <input type="text" id="placeholder" placeholder="Enter your response...">
+                        </div>
+                    </div>
+
+                    <!-- Multiple Choice/Checkbox Options -->
+                    <div id="choiceOptions" class="question-options" style="display: none;">
+                        <div class="form-group">
+                            <label>Options</label>
+                            <div id="optionsList" class="options-list">
+                                <div class="option-item">
+                                    <input type="text" placeholder="Option 1">
+                                    <button class="btn-icon btn-remove">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" id="addOption">
+                                <i class="fas fa-plus"></i>
+                                Add Option
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Slider Options -->
+                    <div id="sliderOptions" class="question-options" style="display: none;">
+                        <div class="form-group">
+                            <label for="sliderMin">Minimum Value</label>
+                            <input type="number" id="sliderMin" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="sliderMax">Maximum Value</label>
+                            <input type="number" id="sliderMax" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="sliderStep">Step Size</label>
+                            <input type="number" id="sliderStep" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="sliderLabels">End Labels</label>
+                            <input type="text" id="sliderLabels" placeholder="Low, High">
+                            <small>Separate labels with comma</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab Content -->
+        <div class="tab-content" id="settingsTabContent" style="display: none;">
+            <div class="settings-container">
+                <!-- Form Configuration Card -->
+                <div class="settings-card">
+
+                    <div class="settings-card__header">
+                        <div class="settings-card__icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div>
+                            <h2 class="settings-card__title">Form Configuration</h2>
+                            <p class="settings-card__description">Configure your evaluation form settings and accessibility</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-card__body">
+                        <!-- Course Information -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="courseId">Course ID</label>
+                                <input type="text" id="courseId" placeholder="e.g., CS 485 - Software Engineering">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="courseDescription">Course Description</label>
+                                <textarea id="courseDescription" rows="3" placeholder="Enter course description..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Due Date and Time -->
+                        <div class="form-row form-row--split">
+                            <div class="form-group">
+                                <label for="dueDate">
+                                    <i class="far fa-calendar-alt"></i> Due Date
+                                </label>
+                                <div class="input-with-icon">
+                                    <input type="date" id="dueDate">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="dueTime">
+                                    <i class="far fa-clock"></i> Due Time
+                                </label>
+                                <div class="input-with-icon">
+                                    <input type="time" id="dueTime">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accessibility -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="accessibility">Privacy / Accessibility</label>
+                                <select id="accessibility">
+                                    <option value="public">Same Institution - All students from my institution</option>
+                                    <option value="department">Same Institution & Course - Students from my institution in this course</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Passcode Protection -->
+                        <div class="form-row">
+                            <label class="checkbox-label checkbox-label--feature">
+                                <input type="checkbox" id="requirePasscode">
+                                <div class="checkbox-content">
+                                    <span class="checkbox-title">Require Passcode</span>
+                                    <span class="checkbox-description">Students need a passcode to access this evaluation</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-row passcode-input-row" id="passcodeInputRow" style="display: none;">
+                            <div class="form-group">
+                                <label for="passcode">Passcode (6 digits)</label>
+                                <input type="text" id="passcode" placeholder="Enter 6-digit passcode" maxlength="6" pattern="[0-9]{6}" inputmode="numeric">
+                                <small>Students will need this 6-digit numerical passcode to access the evaluation</small>
+                            </div>
+                        </div>
+
+                        <!-- Anonymous Evaluations -->
+                        <div class="form-row">
+                            <label class="checkbox-label checkbox-label--feature">
+                                <input type="checkbox" id="anonymousEvaluations" checked>
+                                <div class="checkbox-content">
+                                    <span class="checkbox-title">Anonymous Evaluations</span>
+                                    <span class="checkbox-description">Students' responses will not be linked to their identity</span>
+                                </div>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Team Configuration Card -->
+                <div class="settings-card">
+                    <div class="settings-card__header">
+                        <div class="settings-card__icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h2 class="settings-card__title">Team Configuration</h2>
+                            <p class="settings-card__description">Define team structure and evaluation process</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-card__body">
+                        <!-- Team Size -->
+                        <div class="form-row form-row--split">
+                            <div class="form-group">
+                                <label for="minTeamSize">Minimum Team Size</label>
+                                <select id="minTeamSize">
+                                    <option value="2">2 members</option>
+                                    <option value="3">3 members</option>
+                                    <option value="4">4 members</option>
+                                    <option value="5">5 members</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="maxTeamSize">Maximum Team Size</label>
+                                <select id="maxTeamSize">
+                                    <option value="5">5 members</option>
+                                    <option value="6">6 members</option>
+                                    <option value="7">7 members</option>
+                                    <option value="8">8 members</option>
+                                    <option value="9">9 members</option>
+                                    <option value="10">10 members</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Instructions for Students -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="studentInstructions">Instructions for Students</label>
+                                <textarea id="studentInstructions" rows="4" placeholder="Enter instructions for students...">Form your team and evaluate each teammate based on the criteria below.</textarea>
+                                <small>These instructions will be shown to students when they start the evaluation</small>
+                            </div>
+                        </div>
+
+                        <!-- Self-Evaluation -->
+                        <div class="form-row">
+                            <label class="checkbox-label checkbox-label--feature">
+                                <input type="checkbox" id="allowSelfEvaluation">
+                                <div class="checkbox-content">
+                                    <span class="checkbox-title">Allow Self-Evaluation</span>
+                                    <span class="checkbox-description">Students can include themselves in the evaluation process</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="info-box">
+                            <i class="fas fa-info-circle"></i>
+                            <div class="info-box__content">
+                                <strong>Note:</strong> Evaluation questions will be repeated for each team member. Responses are recorded individually for each member.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Tab Content -->
+        <div class="tab-content" id="previewTabContent" style="display: none;">
+            <div class="preview-wrapper">
+                <!-- Preview Form Container -->
+                <div class="preview-form-container">
+                    <div class="preview-form" id="previewForm">
+                        <!-- Form Header -->
+                        <div class="preview-form__header">
+                            <h1 class="preview-form__title" id="previewTitle">Peer Evaluation Form</h1>
+                            <p class="preview-form__description" id="previewDescription">Form your team and evaluate each teammate based on the criteria below.</p>
+                            
+                            <!-- Course Info (if provided) -->
+                            <div class="preview-course-info" id="previewCourseInfo" style="display: none;">
+                                <div class="course-info-item">
+                                    <i class="fas fa-book"></i>
+                                    <span id="previewCourseId"></span>
+                                </div>
+                                <div class="course-info-item" id="previewDueDateContainer" style="display: none;">
+                                    <i class="far fa-calendar-alt"></i>
+                                    <span>Due: <span id="previewDueDate"></span></span>
+                                </div>
+                            </div>
+
+                            <!-- Instructions -->
+                            <div class="preview-instructions" id="previewInstructions" style="display: none;">
+                                <div class="preview-instructions__icon">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div class="preview-instructions__content" id="previewInstructionsText"></div>
+                            </div>
+                        </div>
+
+                        <!-- Form Sections -->
+                        <div class="preview-form__sections" id="previewSections">
+                            <!-- Sections will be rendered here -->
+                        </div>
+
+                        <!-- Empty State -->
+                        <div class="preview-empty-state" id="previewEmptyState">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>No Sections Added Yet</h3>
+                            <p>Go to the Design tab to start adding sections and questions to your form.</p>
+                        </div>
+
+                        <!-- Form Footer -->
+                        <div class="preview-form__footer" id="previewFooter" style="display: none;">
+                            <button class="btn btn-primary btn-lg" disabled>
+                                <i class="fas fa-paper-plane"></i>
+                                Submit Evaluation
+                            </button>
+                            <p class="preview-footer-note">* This is a preview. Buttons are disabled.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="{% static 'EvalMateApp/js/form-builder.js' %}?v=21"></script>

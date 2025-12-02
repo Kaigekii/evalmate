@@ -7,6 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initSPA();
     initDashboard();
     loadStats();
+    
+    // Check if we need to show passcode modal (from direct URL navigation)
+    if (window.passcodeModalData && window.passcodeModalData.form_id) {
+        openPasscodeModal(
+            window.passcodeModalData.form_id,
+            window.passcodeModalData.form_title,
+            window.passcodeModalData.form_description
+        );
+    }
 });
 
 // ==================== SPA Navigation ====================
@@ -103,10 +112,7 @@ function initDashboard() {
     updateCurrentDate();
     
     // Initialize search
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearch);
-    }
+    initSearch();
     
     // Notification bell
     document.getElementById('notificationBtn')?.addEventListener('click', () => {
@@ -166,17 +172,24 @@ async function loadStats() {
 
 // ==================== Pending Evaluations Section ====================
 
+// Track if listeners are already attached to prevent duplicates
+let pendingFiltersInitialized = false;
+
 function loadPendingEvaluations(filter = 'all') {
-    // Initialize filters
-    const filterButtons = document.querySelectorAll('#pendingSection .filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleFilterClick);
-    });
-    
-    // Initialize sort
-    const sortSelect = document.getElementById('sortSelect');
-    if (sortSelect) {
-        sortSelect.addEventListener('change', handleSortChange);
+    // Initialize filters only once
+    if (!pendingFiltersInitialized) {
+        const filterButtons = document.querySelectorAll('#pendingSection .filter-btn');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', handleFilterClick);
+        });
+        
+        // Initialize sort
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', handleSortChange);
+        }
+        
+        pendingFiltersInitialized = true;
     }
     
     // Load evaluations
@@ -184,18 +197,35 @@ function loadPendingEvaluations(filter = 'all') {
 }
 
 function handleFilterClick(event) {
+    const filterButton = event.target;
+    
+    // Prevent multiple clicks during loading
+    if (filterButton.disabled) return;
+    
     // Update UI immediately
     document.querySelectorAll('#pendingSection .filter-btn').forEach(btn => {
         btn.classList.remove('filter-btn--active');
     });
     
-    event.target.classList.add('filter-btn--active');
-    const filter = event.target.dataset.filter;
+    filterButton.classList.add('filter-btn--active');
+    const filter = filterButton.dataset.filter;
     
     // If data already loaded, filter instantly without re-fetching
     if (allEvaluations.length > 0) {
+        const loadingOverlay = document.getElementById('pendingLoadingOverlay');
+        
+        // Show brief loading state for visual feedback
+        showFilterLoadingState('#pendingSection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        
         currentFilter = filter;
-        applyFilterAndSort();
+        
+        // Use timeout to allow loading overlay to display smoothly
+        setTimeout(() => {
+            applyFilterAndSort();
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            hideFilterLoadingState('#pendingSection');
+        }, 150);
     } else {
         // First load - fetch data
         fetchPendingEvaluations(filter);
@@ -213,19 +243,54 @@ let allEvaluations = [];
 let currentFilter = 'all';
 let currentSort = 'due_date';
 
+// Helper functions for filter loading states
+function showFilterLoadingState(sectionSelector) {
+    const section = document.querySelector(sectionSelector);
+    if (!section) return;
+    
+    const filterButtons = section.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+    });
+    
+    const sortSelect = section.querySelector('.sort-select');
+    if (sortSelect) {
+        sortSelect.disabled = true;
+        sortSelect.style.opacity = '0.6';
+    }
+}
+
+function hideFilterLoadingState(sectionSelector) {
+    const section = document.querySelector(sectionSelector);
+    if (!section) return;
+    
+    const filterButtons = section.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    });
+    
+    const sortSelect = section.querySelector('.sort-select');
+    if (sortSelect) {
+        sortSelect.disabled = false;
+        sortSelect.style.opacity = '1';
+    }
+}
+
 async function fetchPendingEvaluations(filter = 'all') {
     const evaluationsList = document.getElementById('evaluationsList');
     const emptyState = document.getElementById('emptyStatePending');
+    const loadingOverlay = document.getElementById('pendingLoadingOverlay');
     
     try {
         currentFilter = filter;
         
-        // Show loading state
-        if (evaluationsList) {
-            evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Loading evaluations...</p></div>';
-            evaluationsList.style.display = 'block';
-        }
-        if (emptyState) emptyState.style.display = 'none';
+        // Show loading overlay and disable filters
+        showFilterLoadingState('#pendingSection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
         
         const response = await fetch('/api/student/pending-evaluations/', {
             cache: 'no-cache'
@@ -238,9 +303,12 @@ async function fetchPendingEvaluations(filter = 'all') {
         const data = await response.json();
         allEvaluations = data.pending_evaluations || [];
         
-        // Apply filter and render immediately
+        // Apply filter and render
         requestAnimationFrame(() => {
             applyFilterAndSort();
+            // Hide loading overlay after rendering
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            hideFilterLoadingState('#pendingSection');
         });
         
         // Update stats
@@ -255,9 +323,15 @@ async function fetchPendingEvaluations(filter = 'all') {
         if (pendingCountEl) pendingCountEl.textContent = allEvaluations.length;
     } catch (error) {
         console.error('Error loading evaluations:', error);
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#pendingSection');
+        
+        // Show error in evaluations list
         if (evaluationsList) {
             evaluationsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Failed to load evaluations. Please refresh the page.</p></div>';
+            evaluationsList.style.display = 'block';
         }
+        if (emptyState) emptyState.style.display = 'none';
     }
 }
 
@@ -351,10 +425,16 @@ function createEvaluationCard(evaluation) {
     const card = document.createElement('div');
     card.className = 'evaluation-card';
     
+    // Check if expired
+    const isExpired = evaluation.is_expired || false;
+    
     // Determine urgency badge
     let urgencyBadge = '';
     let urgencyClass = '';
-    if (evaluation.days_left !== null) {
+    if (isExpired) {
+        urgencyBadge = '<span class="badge badge--danger">EXPIRED</span>';
+        urgencyClass = 'evaluation-card--expired';
+    } else if (evaluation.days_left !== null) {
         if (evaluation.days_left === 0) {
             urgencyBadge = '<span class="badge badge--danger">Due Today</span>';
             urgencyClass = 'evaluation-card--urgent';
@@ -377,13 +457,21 @@ function createEvaluationCard(evaluation) {
     const teamSizeText = `${teamSettings.min_team_size || 'N/A'} - ${teamSettings.max_team_size || 'N/A'} members`;
     const selfEvalText = teamSettings.allow_self_evaluation ? 'Self-eval enabled' : 'Self-eval disabled';
     
-    // Button text based on draft status
-    const buttonText = evaluation.has_draft ? 'Continue Evaluation' : 'Answer Evaluation';
-    const buttonIcon = evaluation.has_draft ? 'fa-play-circle' : 'fa-play';
+    // Button text based on draft status and expiration
+    let buttonText, buttonIcon, buttonDisabled;
+    if (isExpired) {
+        buttonText = 'Form Closed';
+        buttonIcon = 'fa-lock';
+        buttonDisabled = true;
+    } else {
+        buttonText = evaluation.has_draft ? 'Continue Evaluation' : 'Answer Evaluation';
+        buttonIcon = evaluation.has_draft ? 'fa-play-circle' : 'fa-play';
+        buttonDisabled = false;
+    }
     
     // Add status badge for in-progress
     let statusBadge = '';
-    if (evaluation.has_draft) {
+    if (evaluation.has_draft && !isExpired) {
         statusBadge = '<span class="badge badge--success" style="margin-left: 10px;"><i class="fas fa-pencil-alt"></i> Draft Saved</span>';
     }
     
@@ -406,7 +494,7 @@ function createEvaluationCard(evaluation) {
             <p class="evaluation-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
         <div class="evaluation-card__footer">
-            <button class="btn btn--primary" onclick="startEvaluation(${evaluation.form_id})">
+            <button class="btn btn--primary" onclick="startEvaluation(${evaluation.form_id})" ${buttonDisabled ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
                 <i class="fas ${buttonIcon}"></i> ${buttonText}
             </button>
             <button class="btn btn--secondary btn--icon" onclick="removePendingEvaluation(${evaluation.id}, '${escapeHtml(evaluation.title)}')">
@@ -428,29 +516,32 @@ async function startEvaluation(formId) {
 }
 
 async function removePendingEvaluation(pendingId, title) {
-    if (!confirm(`Remove "${title}" from your pending evaluations?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+    notificationManager.confirm(
+        `Remove "${title}" from your pending evaluations?`,
+        async () => {
+            try {
+                const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to remove evaluation');
+                }
+                
+                notificationManager.show('Evaluation removed successfully!', 'success');
+                
+                // Reload pending evaluations
+                fetchPendingEvaluations();
+                loadStats(); // Update overview stats
+            } catch (error) {
+                console.error('Error removing evaluation:', error);
+                notificationManager.show('Failed to remove evaluation. Please try again.', 'error');
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to remove evaluation');
         }
-        
-        // Reload pending evaluations
-        fetchPendingEvaluations();
-        loadStats(); // Update overview stats
-    } catch (error) {
-        console.error('Error removing evaluation:', error);
-        alert('Failed to remove evaluation. Please try again.');
-    }
+    );
 }
 
 function getCookie(name) {
@@ -468,57 +559,112 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification--${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        animation: slideInRight 0.3s ease;
+        max-width: 400px;
+        font-size: 14px;
+    `;
+    notification.textContent = message;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
+}
+
 // ==================== History Section ====================
 
+// Track if listeners are already attached to prevent duplicates
+let historyFiltersInitialized = false;
+
 function loadHistory(filter = 'all') {
-    // Initialize filter buttons
-    const filterButtons = document.querySelectorAll('#historySection .filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleHistoryFilterClick);
-    });
+    // Initialize filter buttons only once
+    if (!historyFiltersInitialized) {
+        const filterButtons = document.querySelectorAll('#historySection .filter-btn');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', handleHistoryFilterClick);
+        });
+        historyFiltersInitialized = true;
+    }
     
     // Fetch history
     fetchHistory(filter);
 }
 
 function handleHistoryFilterClick(event) {
+    const filterButton = event.target;
+    
+    // Prevent multiple clicks during loading
+    if (filterButton.disabled) return;
+    
+    // Update UI immediately
     document.querySelectorAll('#historySection .filter-btn').forEach(btn => {
         btn.classList.remove('filter-btn--active');
     });
     
-    event.target.classList.add('filter-btn--active');
-    const filter = event.target.dataset.filter;
+    filterButton.classList.add('filter-btn--active');
+    const filter = filterButton.dataset.filter;
+    
+    // Show loading state and fetch
     fetchHistory(filter);
 }
 
 async function fetchHistory(filter = 'all') {
+    const historyList = document.getElementById('historyList');
+    const emptyState = document.getElementById('emptyStateHistory');
+    const loadingOverlay = document.getElementById('historyLoadingOverlay');
+    
     try {
-        const response = await fetch('/api/student/evaluation-history/');
+        // Show loading overlay and disable filters
+        showFilterLoadingState('#historySection');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        
+        const response = await fetch('/api/student/evaluation-history/', {
+            cache: 'no-cache'
+        });
+        
         if (!response.ok) {
             throw new Error('Failed to load evaluation history');
         }
         
         const data = await response.json();
-        let history = data.history || [];
+        const allHistory = data.history || [];
+        let history = allHistory;
         
         // Apply filter
         if (filter === 'recent') {
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            history = history.filter(item => new Date(item.submitted_at) >= sevenDaysAgo);
+            history = allHistory.filter(item => new Date(item.submitted_at) >= sevenDaysAgo);
         } else if (filter === 'by-course') {
             // Group by course (already sorted by date in API)
-            history = history;
+            history = allHistory;
         }
         
-        // Update completed count
+        // Update completed count - always show total, not filtered
         const completedCountEl = document.getElementById('completedCount');
-        if (completedCountEl) completedCountEl.textContent = history.length;
+        if (completedCountEl) completedCountEl.textContent = allHistory.length;
         
         // Update UI
-        const emptyState = document.getElementById('emptyStateHistory');
-        const historyList = document.getElementById('historyList');
-        
         if (history.length === 0) {
             emptyState.style.display = 'flex';
             historyList.style.display = 'none';
@@ -527,19 +673,39 @@ async function fetchHistory(filter = 'all') {
             historyList.style.display = 'block';
             renderHistory(history);
         }
+        
+        // Hide loading overlay
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#historySection');
     } catch (error) {
         console.error('Error loading history:', error);
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        hideFilterLoadingState('#historySection');
+        
+        // Show error in history list
+        if (historyList) {
+            historyList.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i><p>Failed to load history. Please refresh the page.</p></div>';
+            historyList.style.display = 'block';
+        }
+        if (emptyState) emptyState.style.display = 'none';
     }
 }
 
 function renderHistory(history) {
     const historyList = document.getElementById('historyList');
-    historyList.innerHTML = '';
+    if (!historyList) return;
+    
+    // Use DocumentFragment for optimized batch DOM update
+    const fragment = document.createDocumentFragment();
     
     history.forEach(item => {
         const card = createHistoryCard(item);
-        historyList.appendChild(card);
+        fragment.appendChild(card);
     });
+    
+    // Single DOM update for better performance
+    historyList.innerHTML = '';
+    historyList.appendChild(fragment);
 }
 
 function createHistoryCard(item) {
@@ -560,6 +726,9 @@ function createHistoryCard(item) {
     const description = item.description || 'No description';
     const truncatedDesc = description.length > 80 ? description.substring(0, 80) + '...' : description;
     
+    // Teammates evaluated text
+    const teammatesText = item.teammates_evaluated ? `${item.teammates_evaluated} teammate${item.teammates_evaluated !== 1 ? 's' : ''}` : 'N/A';
+    
     card.innerHTML = `
         <div class="history-card__header">
             <div class="history-card__icon">
@@ -574,6 +743,7 @@ function createHistoryCard(item) {
             <div class="history-card__info">
                 <span class="info-item"><i class="fas fa-book"></i> <strong>Course:</strong> ${escapeHtml(item.course)}</span>
                 <span class="info-item"><i class="fas fa-users"></i> <strong>Team:</strong> ${escapeHtml(item.team_identifier)}</span>
+                <span class="info-item"><i class="fas fa-user-check"></i> <strong>Evaluated:</strong> ${teammatesText}</span>
             </div>
             <p class="history-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
@@ -581,8 +751,16 @@ function createHistoryCard(item) {
             <span class="history-card__badge">
                 <i class="fas fa-calendar-check"></i> Completed
             </span>
+            <button class="btn--view-details" data-response-id="${item.response_id}">
+                <i class="fas fa-eye"></i> View Details
+            </button>
         </div>
     `;
+    
+    // Add click handler for view details button
+    const viewBtn = card.querySelector('.btn--view-details');
+    viewBtn.addEventListener('click', () => openEvaluationModal(item.response_id));
+    
     return card;
 }
 
@@ -632,17 +810,6 @@ function initProfileForms() {
         setupAcademicFormEnhancements(academicForm);
     }
     
-    document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
-        alert('Change Password feature coming soon!');
-    });
-    
-    document.getElementById('enable2FABtn')?.addEventListener('click', () => {
-        alert('Two-Factor Authentication setup coming soon!');
-    });
-    
-    document.getElementById('viewSessionsBtn')?.addEventListener('click', () => {
-        alert('Active Sessions viewer coming soon!');
-    });
 }
 
 async function handlePersonalInfoSubmit(event) {
@@ -918,62 +1085,455 @@ function updateTopNavAvatar(imageUrl) {
 
 // ==================== Search ====================
 
+let searchTimeout = null;
+let currentSearchIndex = -1;
+
+function initSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const searchResults = document.getElementById('searchResults');
+
+    if (!searchInput) return;
+
+    // Input handler with debouncing
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        
+        // Show/hide clear button
+        if (query.length > 0) {
+            searchClear.classList.add('search-bar__clear--visible');
+        } else {
+            searchClear.classList.remove('search-bar__clear--visible');
+            hideSearchResults();
+            return;
+        }
+
+        // Debounce search
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+
+    // Clear button handler
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.classList.remove('search-bar__clear--visible');
+        hideSearchResults();
+        searchInput.focus();
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', handleSearchKeydown);
+
+    // Click handler for search results (using event delegation)
+    searchResults.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent click outside handler from firing
+        
+        const resultItem = e.target.closest('.search-result-item');
+        if (!resultItem) return;
+
+        const type = resultItem.dataset.type;
+        
+        if (type === 'form') {
+            const formId = resultItem.dataset.formId;
+            if (!formId) return;
+            
+            // Get form data from the rendered search results
+            const formData = window.searchFormData?.find(f => f.id == formId);
+            if (!formData) return;
+            
+            // Check if already in pending - just show message, don't add again
+            if (formData.is_pending) {
+                showNotification('This form is already in your pending evaluations', 'info');
+                return;
+            }
+            
+            const formTitle = resultItem.querySelector('.search-result-item__title').textContent;
+            
+            if (formData.requires_passcode) {
+                // Show passcode modal
+                openPasscodeModal(formId, formTitle);
+            } else {
+                // No passcode required, add directly to pending
+                try {
+                    const response = await fetch('/api/student/pending-evaluations/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ form_id: formId })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                        // Reload pending evaluations
+                        loadPendingEvaluations();
+                        // Hide search results
+                        hideSearchResults();
+                        // Clear search input
+                        searchInput.value = '';
+                        searchClear.classList.remove('search-bar__clear--visible');
+                    } else {
+                        showNotification(data.message || 'Failed to add form', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error adding form to pending:', error);
+                    showNotification('An error occurred. Please try again.', 'error');
+                }
+            }
+        } else if (type === 'history') {
+            // Open history detail modal
+            const index = parseInt(resultItem.dataset.index);
+            // You can implement modal opening here if needed
+            console.log('History item clicked:', index);
+        }
+    });
+
+    // Click outside to close (but not when clicking inside results)
+    document.addEventListener('click', (e) => {
+        const searchBar = searchInput.closest('.search-bar');
+        const resultsEl = document.getElementById('searchResults');
+        const clickedInsideBar = searchBar && searchBar.contains(e.target);
+        const clickedInsideResults = resultsEl && resultsEl.contains(e.target);
+        if (!clickedInsideBar && !clickedInsideResults) {
+            hideSearchResults();
+        }
+    });
+}
+
 function handleSearch(event) {
+    // Keep for backward compatibility
     const query = event.target.value.trim();
-    const resultsContainerId = 'searchResultsContainer';
-    let container = document.getElementById(resultsContainerId);
-
-    if (!container) {
-        container = document.createElement('div');
-        container.id = resultsContainerId;
-        container.style.position = 'absolute';
-        container.style.zIndex = 1000;
-        container.style.background = '#fff';
-        container.style.border = '1px solid #e6e6e6';
-        container.style.width = '360px';
-        container.style.maxHeight = '300px';
-        container.style.overflow = 'auto';
-        container.style.boxShadow = '0 6px 20px rgba(0,0,0,0.08)';
-        const searchInput = document.getElementById('searchInput');
-        searchInput.parentNode.appendChild(container);
+    if (query.length > 0) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
     }
+}
 
-    if (query.length === 0) {
-        container.innerHTML = '';
-        container.style.display = 'none';
+async function performSearch(query) {
+    const searchResults = document.getElementById('searchResults');
+    
+    // Show loading state
+    searchResults.innerHTML = `
+        <div class="search-results__loading">
+            <i class="fas fa-spinner"></i>
+            <span>Searching...</span>
+        </div>
+    `;
+    searchResults.classList.add('search-results--visible');
+    currentSearchIndex = -1;
+
+    try {
+        // Search both forms and history in parallel
+        const [formsResponse, historyResponse] = await Promise.all([
+            fetch(`/forms/search/?q=${encodeURIComponent(query)}`),
+            fetch(`/api/student/evaluation-history/`)
+        ]);
+
+        const formsData = await formsResponse.json();
+        const historyData = await historyResponse.json();
+
+        // Store forms data globally for passcode checking
+        window.searchFormData = formsData.results || [];
+
+        // Filter history by query
+        const filteredHistory = historyData.history.filter(item => 
+            item.title.toLowerCase().includes(query.toLowerCase()) ||
+            item.course.toLowerCase().includes(query.toLowerCase()) ||
+            item.team_identifier.toLowerCase().includes(query.toLowerCase())
+        );
+
+        renderSearchResults(formsData.results || [], filteredHistory);
+    } catch (error) {
+        console.error('Search error:', error);
+        searchResults.innerHTML = `
+            <div class="search-results__empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading search results</p>
+            </div>
+        `;
+    }
+}
+
+function renderSearchResults(forms, history) {
+    const searchResults = document.getElementById('searchResults');
+    
+    if (forms.length === 0 && history.length === 0) {
+        searchResults.innerHTML = `
+            <div class="search-results__empty">
+                <i class="fas fa-search"></i>
+                <p>No results found</p>
+            </div>
+        `;
         return;
     }
 
-    // Fetch search results from server
-    fetch(`/forms/search/?q=${encodeURIComponent(query)}`)
-        .then(res => res.json())
-        .then(data => {
-            container.innerHTML = '';
-            if (!data.results || data.results.length === 0) {
-                container.innerHTML = '<div style="padding:12px;">No forms found.</div>';
-                container.style.display = 'block';
-                return;
-            }
+    let html = '';
 
-            data.results.forEach(f => {
-                const item = document.createElement('div');
-                item.className = 'search-result-item';
-                item.style.padding = '10px';
-                item.style.borderBottom = '1px solid #f0f0f0';
-                item.style.cursor = 'pointer';
-                item.innerHTML = `<strong>${escapeHtml(f.title)}</strong><div class="muted">Course: ${escapeHtml(f.course_id)}</div>`;
-                item.addEventListener('click', () => {
-                    // open form page
-                    window.location.href = `/forms/${f.id}/`;
-                });
-                container.appendChild(item);
-            });
-            container.style.display = 'block';
-        })
-        .catch(err => {
-            console.error('Search error', err);
+    // Render forms section
+    if (forms.length > 0) {
+        html += '<div class="search-results__section">';
+        html += '<div class="search-results__section-title">Available Forms</div>';
+        forms.forEach((form, index) => {
+            const isPending = form.is_pending;
+            const pendingClass = isPending ? ' search-result-item--already-pending' : '';
+            const badgeHtml = isPending 
+                ? `<span class="search-result-item__badge search-result-item__badge--already-pending">
+                       <i class="fas fa-check"></i> Already in Pending
+                   </span>`
+                : `<span class="search-result-item__badge search-result-item__badge--available">
+                       <i class="fas fa-plus-circle"></i> Available
+                   </span>`;
+            
+            html += `
+                <div class="search-result-item search-result-item--form${pendingClass}" data-index="${index}" data-type="form" data-form-id="${form.id}">
+                    <div class="search-result-item__icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="search-result-item__content">
+                        <div class="search-result-item__title">${escapeHtml(form.title)}</div>
+                        <div class="search-result-item__meta">
+                            <span><i class="fas fa-book"></i> ${escapeHtml(form.course_id)}</span>
+                            ${badgeHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
         });
+        html += '</div>';
+    }
+
+    // Render history section
+    if (history.length > 0) {
+        html += '<div class="search-results__section">';
+        html += '<div class="search-results__section-title">Completed Evaluations</div>';
+        history.forEach((item, index) => {
+            const date = new Date(item.submitted_at);
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            html += `
+                <div class="search-result-item search-result-item--history" data-index="${forms.length + index}" data-type="history">
+                    <div class="search-result-item__icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="search-result-item__content">
+                        <div class="search-result-item__title">${escapeHtml(item.title)}</div>
+                        <div class="search-result-item__meta">
+                            <span><i class="fas fa-book"></i> ${escapeHtml(item.course)}</span>
+                            <span><i class="fas fa-calendar"></i> ${formattedDate}</span>
+                            <span class="search-result-item__badge search-result-item__badge--completed">
+                                <i class="fas fa-check"></i> Completed
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    searchResults.innerHTML = html;
 }
+
+function handleSearchKeydown(event) {
+    const searchResults = document.getElementById('searchResults');
+    const items = searchResults.querySelectorAll('.search-result-item');
+    
+    if (items.length === 0) return;
+
+    switch(event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            currentSearchIndex = Math.min(currentSearchIndex + 1, items.length - 1);
+            updateSearchSelection(items);
+            break;
+        
+        case 'ArrowUp':
+            event.preventDefault();
+            currentSearchIndex = Math.max(currentSearchIndex - 1, -1);
+            updateSearchSelection(items);
+            break;
+        
+        case 'Escape':
+            event.preventDefault();
+            hideSearchResults();
+            document.getElementById('searchInput').blur();
+            break;
+        
+        case 'Enter':
+            event.preventDefault();
+            if (currentSearchIndex >= 0 && items[currentSearchIndex]) {
+                // Future: Navigate to selected item
+                console.log('Selected item:', currentSearchIndex);
+            }
+            break;
+    }
+}
+
+function updateSearchSelection(items) {
+    items.forEach((item, index) => {
+        if (index === currentSearchIndex) {
+            item.classList.add('search-result-item--active');
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            item.classList.remove('search-result-item--active');
+        }
+    });
+}
+
+function hideSearchResults() {
+    const searchResults = document.getElementById('searchResults');
+    searchResults.classList.remove('search-results--visible');
+    searchResults.innerHTML = '';
+    currentSearchIndex = -1;
+}
+
+// ==================== PASSCODE MODAL FUNCTIONS ====================
+
+let currentFormId = null;
+
+function openPasscodeModal(formId, formTitle) {
+    currentFormId = formId;
+    const modal = document.getElementById('passcodeModal');
+    const title = document.getElementById('passcodeModalTitle');
+    const description = document.getElementById('passcodeModalDescription');
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    
+    title.textContent = formTitle || 'Secure Access Required';
+    description.textContent = 'This evaluation requires a passcode to access.';
+    input.value = '';
+    input.classList.remove('input-error');
+    error.style.display = 'none';
+    
+    modal.classList.add('modal-overlay--active');
+    
+    // Auto-focus input after animation
+    setTimeout(() => {
+        input.focus();
+    }, 150);
+}
+
+function closePasscodeModal() {
+    const modal = document.getElementById('passcodeModal');
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    
+    modal.classList.remove('modal-overlay--active');
+    input.value = '';
+    input.classList.remove('input-error');
+    error.style.display = 'none';
+    currentFormId = null;
+}
+
+function togglePasscodeVisibility() {
+    const input = document.getElementById('passcodeInput');
+    const icon = document.getElementById('passcodeToggleIcon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+async function submitPasscode(event) {
+    event.preventDefault();
+    
+    const input = document.getElementById('passcodeInput');
+    const error = document.getElementById('passcodeError');
+    const errorText = document.getElementById('passcodeErrorText');
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const passcode = input.value.trim();
+    
+    // Remove error state
+    input.classList.remove('input-error');
+    
+    if (!passcode || passcode.length !== 6) {
+        showPasscodeError('Please enter a 6-digit passcode.');
+        input.classList.add('input-error');
+        return;
+    }
+    
+    // Disable submit button and show loading
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Verifying...</span>';
+    error.style.display = 'none';
+    
+    try {
+        const formData = new FormData();
+        formData.append('passcode', passcode);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        const response = await fetch(`/forms/${currentFormId}/access/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Success - close modal and reload pending evaluations
+            closePasscodeModal();
+            showNotification(data.message || 'Form added to pending evaluations!', 'success');
+            // Reload pending evaluations
+            loadPendingEvaluations();
+            // Hide search results and clear search
+            hideSearchResults();
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+            if (searchInput) {
+                searchInput.value = '';
+                searchClear?.classList.remove('search-bar__clear--visible');
+            }
+        } else {
+            // Invalid passcode
+            showPasscodeError(data.error || 'Invalid passcode. Please try again.');
+            input.classList.add('input-error');
+            input.value = '';
+            input.focus();
+        }
+    } catch (error) {
+        console.error('Error submitting passcode:', error);
+        showPasscodeError('An error occurred. Please try again.');
+        input.classList.add('input-error');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verify & Continue</span>';
+    }
+}
+
+function showPasscodeError(message) {
+    const error = document.getElementById('passcodeError');
+    const errorText = document.getElementById('passcodeErrorText');
+    
+    errorText.textContent = message;
+    error.style.display = 'flex';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const passcodeModal = document.getElementById('passcodeModal');
+        if (passcodeModal.classList.contains('modal-overlay--active')) {
+            closePasscodeModal();
+        }
+    }
+});
 
 function escapeHtml(unsafe) {
     return unsafe
@@ -1061,6 +1621,99 @@ function showSignOutModal(logoutUrl) {
             setTimeout(() => modal.remove(), 300);
         }
     });
+}
+
+// ==================== Modal for Evaluation Details ====================
+
+async function openEvaluationModal(responseId) {
+    const modalOverlay = document.getElementById('evaluationModal');
+    const modalBody = document.getElementById('evaluationModalBody');
+    
+    // Show modal with loading state
+    modalOverlay.classList.add('modal-overlay--active');
+    modalBody.innerHTML = '<div class="modal__loading"><i class="fas fa-spinner"></i><p>Loading evaluation details...</p></div>';
+    
+    try {
+        const response = await fetch(`/api/student/evaluation-history/${responseId}/`);
+        if (!response.ok) {
+            throw new Error('Failed to load evaluation details');
+        }
+        
+        const data = await response.json();
+        renderEvaluationDetails(data);
+    } catch (error) {
+        console.error('Error loading evaluation details:', error);
+        modalBody.innerHTML = '<div class="modal__loading"><p style="color: #e74c3c;">Failed to load evaluation details. Please try again.</p></div>';
+    }
+}
+
+function renderEvaluationDetails(data) {
+    const modalBody = document.getElementById('evaluationModalBody');
+    const modalTitle = document.getElementById('evaluationModalTitle');
+    
+    // Set modal title
+    modalTitle.textContent = data.form_title;
+    
+    // Build teammates sections HTML
+    let teammatesHTML = '';
+    data.teammates.forEach((teammate, index) => {
+        const submittedDate = new Date(teammate.submitted_at);
+        const formattedDate = submittedDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        let answersHTML = '';
+        teammate.answers.forEach(answer => {
+            answersHTML += `
+                <div class="answer-item">
+                    <div class="answer-question">${escapeHtml(answer.question)}</div>
+                    <div class="answer-text">${escapeHtml(answer.answer || 'No answer provided')}</div>
+                </div>
+            `;
+        });
+        
+        teammatesHTML += `
+            <div class="teammate-section">
+                <div class="teammate-header">
+                    <i class="fas fa-user-circle"></i>
+                    <h3 class="teammate-name">${escapeHtml(teammate.teammate_name)}</h3>
+                    <span class="teammate-date">${formattedDate}</span>
+                </div>
+                ${answersHTML}
+            </div>
+        `;
+    });
+    
+    // Render full modal content
+    modalBody.innerHTML = `
+        <div class="modal__meta">
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Course</div>
+                <div class="modal__meta-value">${escapeHtml(data.course)}</div>
+            </div>
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Team</div>
+                <div class="modal__meta-value">${escapeHtml(data.team_identifier)}</div>
+            </div>
+            <div class="modal__meta-item">
+                <div class="modal__meta-label">Teammates Evaluated</div>
+                <div class="modal__meta-value">${data.total_teammates}</div>
+            </div>
+        </div>
+        
+        ${data.description ? `<div class="modal__description">${escapeHtml(data.description)}</div>` : ''}
+        
+        ${teammatesHTML}
+    `;
+}
+
+function closeEvaluationModal() {
+    const modalOverlay = document.getElementById('evaluationModal');
+    modalOverlay.classList.remove('modal-overlay--active');
 }
 
 // Initialize sign out when DOM is ready

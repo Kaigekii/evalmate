@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/student-overview.css' %}">
+    
+    <script>
+        // Pass session data for passcode modal trigger
+        window.passcodeModalData = {{ show_passcode_modal|safe }};
+    </script>
 </head>
 <body>
     <!-- Main Container -->
@@ -85,9 +90,16 @@
                         <input 
                             type="text" 
                             class="search-bar__input" 
-                            placeholder="Search evaluations..."
+                            placeholder="Search forms and evaluations..."
                             id="searchInput"
+                            autocomplete="off"
                         >
+                        <button class="search-bar__clear" id="searchClear" title="Clear search">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="search-results" id="searchResults">
+                            <!-- Search results will be populated here -->
+                        </div>
                     </div>
 
                     <!-- User Profile -->
@@ -208,7 +220,15 @@
                     </div>
 
                     <!-- Evaluations Container -->
-                    <div class="evaluations-container">
+                    <div class="evaluations-container" style="position: relative;">
+                        <!-- Loading Overlay -->
+                        <div class="loading-overlay" id="pendingLoadingOverlay" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading evaluations...</p>
+                            </div>
+                        </div>
+                        
                         <!-- Empty State -->
                         <div class="empty-state" id="emptyStatePending">
                             <div class="empty-state__icon">
@@ -244,7 +264,15 @@
                     </div>
 
                     <!-- History Container -->
-                    <div class="history-container">
+                    <div class="history-container" style="position: relative;">
+                        <!-- Loading Overlay -->
+                        <div class="loading-overlay" id="historyLoadingOverlay" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading history...</p>
+                            </div>
+                        </div>
+                        
                         <!-- Empty State -->
                         <div class="empty-state" id="emptyStateHistory">
                             <div class="empty-state__icon">
@@ -314,10 +342,7 @@
                             <i class="fas fa-graduation-cap"></i>
                             <span>Academic</span>
                         </button>
-                        <button class="profile-tab" data-tab="security">
-                            <i class="fas fa-lock"></i>
-                            <span>Security</span>
-                        </button>
+                        
                     </div>
 
                     <!-- Tab Content Container -->
@@ -487,51 +512,94 @@
                                 </form>
                             </div>
                         </div>
-
-                        <!-- Security Tab -->
-                        <div class="tab-content" id="securityTab">
-                            <div class="form-section">
-                                <h2 class="form-section__title">Security Settings</h2>
-                                <p class="form-section__subtitle">Manage your account security</p>
-
-                                <!-- Password Section -->
-                                <div class="security-card">
-                                    <div class="security-card__content">
-                                        <h3 class="security-card__title">Password</h3>
-                                        <p class="security-card__description">Last changed 30 days ago</p>
-                                    </div>
-                                    <button class="btn btn--outline" id="changePasswordBtn">Change Password</button>
-                                </div>
-
-                                <!-- Two-Factor Authentication Section -->
-                                <div class="security-card">
-                                    <div class="security-card__content">
-                                        <h3 class="security-card__title">Two-Factor Authentication</h3>
-                                        <p class="security-card__description">Add an extra layer of security to your account</p>
-                                    </div>
-                                    <button class="btn btn--outline" id="enable2FABtn">Enable 2FA</button>
-                                </div>
-
-                                <!-- Active Sessions Section -->
-                                <div class="security-card">
-                                    <div class="security-card__content">
-                                        <h3 class="security-card__title">Active Sessions</h3>
-                                        <p class="security-card__description">Manage devices that have access to your account</p>
-                                    </div>
-                                    <button class="btn btn--outline" id="viewSessionsBtn">View Sessions</button>
-                                </div>
-
-                                <div class="form-actions">
-                                    <button type="button" class="btn btn--primary">Save Changes</button>
-                                    <button type="button" class="btn btn--secondary">Reset Changes</button>
-                                </div>
-                            </div>
-                        </div>
+                                            
                     </div>
                 </section>
 
             </div>
         </main>
+    </div>
+
+    <!-- Passcode Modal -->
+    <div class="modal-overlay" id="passcodeModal">
+        <div class="modal modal--passcode">
+            <button class="modal__close" onclick="closePasscodeModal()" aria-label="Close modal">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="passcode-modal__content">
+                <div class="passcode-modal__header">
+                    <div class="passcode-modal__icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h2 class="passcode-modal__title" id="passcodeModalTitle">Secure Access Required</h2>
+                    <p class="passcode-modal__subtitle" id="passcodeModalDescription">
+                        This evaluation requires a passcode to access.
+                    </p>
+                </div>
+                
+                <div class="passcode-modal__body">
+                    <div class="passcode-modal__error" id="passcodeError" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span id="passcodeErrorText"></span>
+                    </div>
+                    
+                    <form id="passcodeForm" onsubmit="submitPasscode(event)">
+                        <div class="passcode-modal__form-group">
+                            <label for="passcodeInput" class="passcode-modal__label">
+                                <i class="fas fa-key"></i>
+                                Enter 6-Digit Passcode
+                            </label>
+                            <div class="passcode-modal__input-wrapper">
+                                <input 
+                                    type="password" 
+                                    id="passcodeInput" 
+                                    class="passcode-modal__input" 
+                                    placeholder="• • • • • •" 
+                                    maxlength="6" 
+                                    pattern="[0-9]{6}" 
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    required
+                                    aria-describedby="passcodeHelp"
+                                />
+                            </div>
+                            <small id="passcodeHelp" class="passcode-modal__help">
+                                The passcode was provided by your instructor
+                            </small>
+                        </div>
+                        
+                        <div class="passcode-modal__actions">
+                            <button type="submit" class="btn-passcode btn-passcode--submit">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Verify & Continue</span>
+                            </button>
+                            <button type="button" class="btn-passcode btn-passcode--cancel" onclick="closePasscodeModal()">
+                                <span>Cancel</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Details Modal -->
+    <div class="modal-overlay" id="evaluationModal" onclick="if(event.target === this) closeEvaluationModal()">
+        <div class="modal">
+            <div class="modal__header">
+                <h2 class="modal__title" id="evaluationModalTitle">Evaluation Details</h2>
+                <button class="modal__close" onclick="closeEvaluationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal__body" id="evaluationModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--secondary" onclick="closeEvaluationModal()">Close</button>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->

@@ -15,6 +15,7 @@ urlpatterns = [
     path('dashboard/faculty/form-builder/', views.form_builder_view, name='form_builder'),
     path('dashboard/faculty/reports/', views.faculty_reports_view, name='faculty_reports'),
     path('dashboard/faculty/reports/<int:form_id>/', views.faculty_form_responses_view, name='faculty_form_responses'),
+    path('dashboard/faculty/reports/<int:form_id>/student/<int:student_id>/team/<str:team_id>/', views.faculty_student_responses_view, name='faculty_student_responses'),
     path('dashboard/faculty/reports/<int:form_id>/responses/<int:response_id>/', views.faculty_response_detail_view, name='faculty_response_detail'),
 
     # Student form discovery / access
@@ -31,24 +32,27 @@ urlpatterns = [
     
     # API endpoints
     path('api/publish-form', views.api_publish_form, name='api_publish_form'),
-    path('api/forms/<int:form_id>/duplicate/', views.duplicate_form_api, name='duplicate_form_api'),
     path('api/forms/<int:form_id>/delete/', views.delete_form_api, name='delete_form_api'),
     path('api/forms/<int:form_id>/publish/', views.publish_form_api, name='publish_form_api'),
     path('api/forms/<int:form_id>/unpublish/', views.unpublish_form_api, name='unpublish_form_api'),
     path('api/forms/<int:form_id>/details/', views.get_form_details_api, name='get_form_details_api'),
+    path('api/forms/<int:form_id>/load/', views.api_load_form, name='api_load_form'),
     
     # Student pending evaluations API
     path('api/student/pending-evaluations/', views.api_get_pending_evaluations, name='api_get_pending_evaluations'),
     path('api/student/pending-evaluations/<int:pending_id>/remove/', views.api_remove_pending_evaluation, name='api_remove_pending_evaluation'),
     path('api/student/evaluation-history/', views.api_get_evaluation_history, name='api_get_evaluation_history'),
+    path('api/student/evaluation-history/<int:response_id>/', views.api_get_evaluation_detail, name='api_get_evaluation_detail'),
     
-    # Draft API endpoints
-    path('api/student/draft/save/', views.api_save_draft, name='api_save_draft'),
-    path('api/student/draft/<int:form_id>/', views.api_get_draft, name='api_get_draft'),
-    path('api/student/draft/<int:form_id>/delete/', views.api_delete_draft, name='api_delete_draft'),
+
     
     # Profile API endpoints
     path('api/profile/upload-picture/', views.api_upload_profile_picture, name='api_upload_profile_picture'),
     path('api/profile/update-personal/', views.api_update_personal_info, name='api_update_personal_info'),
     path('api/profile/update-academic/', views.api_update_academic_info, name='api_update_academic_info'),
+    
+    # SPA API endpoints for instant page switching
+    path('api/faculty/overview-content/', views.api_faculty_overview_content, name='api_faculty_overview_content'),
+    path('api/faculty/form-builder-content/', views.api_faculty_form_builder_content, name='api_faculty_form_builder_content'),
+    path('api/faculty/reports-content/', views.api_faculty_reports_content, name='api_faculty_reports_content'),
 ]

@@ -1,443 +1,244 @@
 /**
- * Faculty Dashboard - SPA Navigation
- * Uses history.replaceState to avoid stacking pages
- * Back button always returns to Overview
+ * Faculty Dashboard - True SPA with Instant Page Switching
+ * Loads content via API and switches views instantly in the browser
  */
 
-// Preload common CSS and pages for instant navigation
-function preloadCommonResources() {
-    const staticBase = '/static/EvalMateApp/css/';
-    const cssFiles = [
-        'form-builder.css',
-        'reports.css',
-        'student-overview.css'
-    ];
+(function() {
+    'use strict';
     
-    cssFiles.forEach(file => {
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.as = 'style';
-        link.href = staticBase + file;
-        document.head.appendChild(link);
+    // Page cache for instant switching
+    const pageCache = new Map();
+    
+    // Loaded CSS and JS files tracking
+    const loadedCSS = new Set();
+    const loadedJS = new Set();
+    
+    // Route mapping
+    const routes = {
+        '/dashboard/faculty/': {
+            api: '/api/faculty/overview-content/',
+            name: 'overview'
+        },
+        '/dashboard/faculty/form-builder/': {
+            api: '/api/faculty/form-builder-content/',
+            name: 'form-builder'
+        },
+        '/dashboard/faculty/reports/': {
+            api: '/api/faculty/reports-content/',
+            name: 'reports'
+        }
+    };
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebar();
+        initSPANavigation();
+        preloadAllPages();
     });
     
-    // Preload common pages in background for instant switching
-    setTimeout(() => {
-        preloadPage('/dashboard/faculty/form-builder/');
-        preloadPage('/dashboard/faculty/reports/');
-    }, 1000); // Wait 1 second after page load, then preload
-}
-
-/**
- * Preload a page in the background and cache it
- */
-function preloadPage(url) {
-    if (pageCache.has(url)) return; // Already cached
-    
-    fetch(url, {
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const content = doc.querySelector('.main-content');
+    function initSidebar() {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
         
-        if (content) {
-            // Load CSS for this page
-            loadPageSpecificCSS(doc).then(() => {
-                // Cache the page
-                pageCache.set(url, {
-                    content: content.innerHTML,
-                    timestamp: Date.now()
-                });
-                console.log('Preloaded:', url);
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                sidebar.classList.toggle('sidebar--collapsed');
+                
+                const isCollapsed = sidebar.classList.contains('sidebar--collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+            });
+            
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (savedState === 'true') {
+                sidebar.classList.add('sidebar--collapsed');
+            }
+        }
+        
+        const signOutBtn = document.getElementById('signOutBtn');
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                notificationManager.confirm(
+                    'Are you sure you want to sign out?',
+                    () => {
+                        window.location.href = signOutBtn.href;
+                    }
+                );
             });
         }
-    })
-    .catch(err => console.log('Preload failed:', url));
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initSidebar();
-    initSPANavigation();
-    preloadCommonResources(); // Preload CSS and pages for instant transitions
-});
-
-/**
- * Sidebar Toggle Functionality
- */
-function initSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebarToggle');
-
-    if (!sidebar || !sidebarToggle) return;
-
-    // Toggle sidebar on logo click
-    sidebarToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        sidebar.classList.toggle('collapsed');
-        
-        // Save state to localStorage
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
-    });
-
-    // Restore sidebar state from localStorage
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    if (savedState === 'true') {
-        sidebar.classList.add('collapsed');
-    }
-}
-
-/**
- * SPA Navigation - Intercepts clicks and loads content via AJAX
- * Uses replaceState to prevent history stacking
- */
-function initSPANavigation() {
-    const mainContent = document.querySelector('.main-content');
-    if (!mainContent) return;
-
-    // Preload on hover for instant switching
-    document.addEventListener('mouseover', (e) => {
-        const link = e.target.closest('.sidebar__link');
-        if (!link) return;
-        
-        const href = link.getAttribute('href');
-        if (href && !href.includes('logout') && !pageCache.has(href)) {
-            preloadPage(href);
-        }
-    });
-    
-    // Intercept all sidebar link clicks
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('.sidebar__link');
-        if (!link) return;
-
-        // Don't intercept logout links
-        const href = link.getAttribute('href');
-        if (!href || href.includes('logout')) {
-            return; // Let it navigate normally
-        }
-
-        // Prevent default navigation
-        e.preventDefault();
-
-        // Load the new page content (will be instant if cached)
-        loadPage(href, link);
-    });
-
-    // Handle browser back button - load the previous page from state
-    window.addEventListener('popstate', (e) => {
-        const state = e.state;
-        if (state && state.url) {
-            // Load the page from state
-            const mainContent = document.querySelector('.main-content');
-            fetch(state.url)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newContent = doc.querySelector('.main-content');
-                    
-                    if (newContent) {
-                        // Load CSS first and wait
-                        loadPageSpecificCSS(doc).then(() => {
-                            mainContent.innerHTML = newContent.innerHTML;
-                            updateActiveLink(null);
-                            reinitializeScripts(state.url, doc);
-                        });
-                    }
-                });
-        } else {
-            // No state, go to overview
-            window.location.href = '/dashboard/faculty/';
-        }
-    });
-}
-
-/**
- * Cache for storing page content
- */
-const pageCache = new Map();
-
-/**
- * Load page content via AJAX with INSTANT switching
- */
-function loadPage(url, clickedLink) {
-    const mainContent = document.querySelector('.main-content');
-    const loadingBar = document.getElementById('spaLoadingBar');
-    const overviewUrl = '/dashboard/faculty/';
-    
-    // INSTANT: Check if page is in cache
-    if (pageCache.has(url)) {
-        // INSTANT RENDER from cache - NO DELAY
-        const cachedData = pageCache.get(url);
-        mainContent.innerHTML = cachedData.content;
-        
-        // Update history
-        if (url !== overviewUrl) {
-            history.replaceState({ url: overviewUrl }, '', overviewUrl);
-            history.pushState({ url: url }, '', url);
-        } else {
-            history.replaceState({ url: url }, '', url);
-        }
-        
-        updateActiveLink(clickedLink);
-        callPageInitFunction(url);
-        
-        return; // Done instantly!
     }
     
-    // NOT IN CACHE - Still switch INSTANTLY with loading placeholder
-    // Show a minimal placeholder instantly
-    const placeholder = `
-        <div style="padding: 2rem; text-align: center; opacity: 0.7;">
-            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">⚡</div>
-            <div>Loading...</div>
-        </div>
-    `;
-    
-    // INSTANT page switch to placeholder
-    mainContent.innerHTML = placeholder;
-    
-    // Show progress bar
-    if (loadingBar) loadingBar.style.width = '50%';
-    
-    // Update history immediately
-    if (url !== overviewUrl) {
-        history.replaceState({ url: overviewUrl }, '', overviewUrl);
-        history.pushState({ url: url }, '', url);
-    } else {
-        history.replaceState({ url: url }, '', url);
-    }
-    
-    updateActiveLink(clickedLink);
-    
-    // Now fetch the real content in background
-    fetch(url, {
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.text();
-        })
-        .then(html => {
-            // Parse the HTML
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+    function initSPANavigation() {
+        // Intercept all sidebar link clicks
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('.sidebar__link');
+            if (!link) return;
             
-            // Extract the main content
-            const newContent = doc.querySelector('.main-content');
-            
-            if (newContent) {
-                // Load page-specific CSS files first and wait for them
-                loadPageSpecificCSS(doc).then(() => {
-                    // Cache the page content for instant future access
-                    pageCache.set(url, {
-                        content: newContent.innerHTML,
-                        timestamp: Date.now()
-                    });
-                    
-                    // Replace the content after CSS is loaded
-                    mainContent.innerHTML = newContent.innerHTML;
-                    
-                    // Complete loading bar
-                    if (loadingBar) {
-                        loadingBar.style.width = '100%';
-                        setTimeout(() => {
-                            loadingBar.style.width = '0';
-                        }, 200);
-                    }
-                    
-                    // Remove loading state
-                    mainContent.style.opacity = '1';
-                    mainContent.style.pointerEvents = 'auto';
-                    
-                    // If we're not on overview, push state with overview as the previous page
-                    if (url !== overviewUrl) {
-                        // First ensure overview is in history
-                        history.replaceState({ url: overviewUrl }, '', overviewUrl);
-                        // Then push the new page
-                        history.pushState({ url: url }, '', url);
-                    } else {
-                        // If we're going to overview, just replace state
-                        history.replaceState({ url: url }, '', url);
-                    }
-                    
-                    // Update active link in sidebar
-                    updateActiveLink(clickedLink);
-                    
-                    // Reinitialize page-specific scripts
-                    reinitializeScripts(url, doc);
-                });
-            } else {
-                // If we can't find main-content, do a full page load
-                window.location.href = url;
+            const href = link.getAttribute('href');
+            if (!href || href.includes('logout') || !routes[href]) {
+                return; // Let it navigate normally
             }
+            
+            e.preventDefault();
+            loadPage(href, link);
+        });
+        
+        // Handle browser back/forward
+        window.addEventListener('popstate', function(e) {
+            if (e.state && e.state.url && routes[e.state.url]) {
+                loadPage(e.state.url, null, true);
+            }
+        });
+    }
+    
+    function loadPage(url, clickedLink, skipHistory = false) {
+        const mainContent = document.getElementById('mainContent');
+        if (!mainContent) return;
+        
+        // Check cache first - INSTANT RENDER
+        if (pageCache.has(url)) {
+            const cachedData = pageCache.get(url);
+            mainContent.innerHTML = cachedData.html;
+            
+            if (!skipHistory) {
+                history.replaceState({ url: url }, '', url);
+            }
+            
+            updateActiveLink(url);
+            document.title = cachedData.title || 'Faculty Dashboard';
+            
+            // Load any additional CSS/JS if needed
+            loadPageResources(cachedData);
+            reinitializeScripts(url);
+            
+            return; // INSTANT!
+        }
+        
+        // Not in cache - fetch from API
+        const route = routes[url];
+        if (!route) return;
+        
+        // Show minimal loading indicator
+        mainContent.style.opacity = '0.6';
+        
+        fetch(route.api, {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load page');
+            }
+            
+            // Cache the page
+            pageCache.set(url, {
+                html: data.html,
+                title: data.title,
+                css: data.css || [],
+                js: data.js || []
+            });
+            
+            // Render content
+            mainContent.innerHTML = data.html;
+            mainContent.style.opacity = '1';
+            
+            if (!skipHistory) {
+                history.replaceState({ url: url }, '', url);
+            }
+            
+            updateActiveLink(url);
+            document.title = data.title || 'Faculty Dashboard';
+            
+            // Load resources
+            loadPageResources(data);
+            reinitializeScripts(url);
         })
         .catch(error => {
             console.error('Error loading page:', error);
-            if (loadingBar) loadingBar.style.width = '0';
+            mainContent.style.opacity = '1';
             // Fallback to normal navigation
             window.location.href = url;
         });
-}
-
-/**
- * Update active link styling
- */
-function updateActiveLink(clickedLink) {
-    // Remove active class from all links
-    document.querySelectorAll('.sidebar__link').forEach(link => {
-        link.classList.remove('sidebar__link--active');
-    });
-    
-    // Add active class to clicked link
-    if (clickedLink) {
-        clickedLink.classList.add('sidebar__link--active');
-    }
-}
-
-/**
- * Track loaded CSS files globally
- */
-const globalLoadedCSS = new Set();
-
-/**
- * Load page-specific CSS files
- * Returns a promise that resolves when all CSS files are loaded
- * Optimized: Returns immediately if all CSS is already loaded
- */
-function loadPageSpecificCSS(doc) {
-    // Get all link elements from the new page
-    const newLinks = doc.querySelectorAll('link[rel="stylesheet"]');
-    const promises = [];
-    
-    // Add new CSS files that aren't already loaded
-    newLinks.forEach(link => {
-        const href = link.href;
-        
-        // Skip fonts and icons
-        if (href.includes('font-awesome') || 
-            href.includes('fonts.googleapis') ||
-            href.includes('fonts.gstatic')) {
-            return;
-        }
-        
-        // Only load if not already in the global set
-        if (!globalLoadedCSS.has(href)) {
-            globalLoadedCSS.add(href);
-            
-            const promise = new Promise((resolve, reject) => {
-                const newLink = document.createElement('link');
-                newLink.rel = 'stylesheet';
-                newLink.href = href;
-                newLink.setAttribute('data-spa-css', 'true');
-                
-                newLink.onload = () => resolve();
-                newLink.onerror = () => resolve(); // Don't block on error
-                
-                document.head.appendChild(newLink);
-            });
-            
-            promises.push(promise);
-        }
-    });
-    
-    // If no new CSS to load, resolve immediately
-    if (promises.length === 0) {
-        return Promise.resolve();
     }
     
-    // Return promise that resolves when all CSS is loaded
-    return Promise.all(promises);
-}
-
-/**
- * Track which scripts have been loaded globally
- */
-const globalLoadedScripts = new Set();
-
-/**
- * Reinitialize page-specific JavaScript
- * Optimized to avoid reloading scripts that are already loaded
- */
-function reinitializeScripts(url, doc) {
-    // Get scripts from the new page document
-    const newScripts = doc.querySelectorAll('script[src]');
-    const scriptsToLoad = [];
-    
-    // Check which scripts need to be loaded
-    newScripts.forEach(script => {
-        const src = script.src;
-        
-        // Skip base scripts that should never be reloaded
-        if (src.includes('spa-router.js') || 
-            src.includes('jquery') ||
-            src.includes('font-awesome')) {
-            return;
-        }
-        
-        // Only load page-specific scripts if not already loaded
-        if ((src.includes('form-builder') || 
-             src.includes('student-overview') || 
-             src.includes('faculty-dashboard')) &&
-            !globalLoadedScripts.has(src)) {
-            
-            scriptsToLoad.push(src);
-            globalLoadedScripts.add(src);
-        }
-    });
-    
-    // If scripts need to be loaded, load them
-    if (scriptsToLoad.length > 0) {
-        const promises = scriptsToLoad.map(src => {
-            return new Promise((resolve, reject) => {
-                const newScript = document.createElement('script');
-                newScript.src = src;
-                newScript.setAttribute('data-spa-script', 'true');
-                newScript.async = false;
-                newScript.onload = () => resolve();
-                newScript.onerror = () => resolve(); // Resolve even on error
-                document.body.appendChild(newScript);
-            });
+    function updateActiveLink(url) {
+        document.querySelectorAll('.sidebar__link').forEach(link => {
+            link.classList.remove('sidebar__link--active');
+            if (link.getAttribute('href') === url) {
+                link.classList.add('sidebar__link--active');
+            }
         });
-        
-        // Wait for all scripts to load, then initialize
-        Promise.all(promises).then(() => {
-            callPageInitFunction(url);
-        });
-    } else {
-        // Scripts already loaded, just call init function immediately
-        callPageInitFunction(url);
     }
     
-    // Execute inline scripts from the main content
-    const inlineScripts = doc.querySelectorAll('.main-content script:not([src])');
-    inlineScripts.forEach(script => {
-        try {
-            eval(script.textContent);
-        } catch (e) {
-            console.error('Error executing inline script:', e);
+    function loadPageResources(data) {
+        // Load CSS files
+        if (data.css) {
+            data.css.forEach(cssPath => {
+                if (!loadedCSS.has(cssPath)) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = cssPath;
+                    document.head.appendChild(link);
+                    loadedCSS.add(cssPath);
+                }
+            });
         }
-    });
-}
-
-/**
- * Call the appropriate page initialization function
- */
-function callPageInitFunction(url) {
-    // Use requestAnimationFrame for optimal timing - runs before next paint
-    requestAnimationFrame(() => {
-        if (url.includes('form-builder') && typeof initFormBuilder === 'function') {
-            initFormBuilder();
-        } else if (url.includes('student-overview') && typeof initStudentOverview === 'function') {
-            initStudentOverview();
-        } else if (typeof initFacultyDashboard === 'function') {
-            initFacultyDashboard();
+        
+        // Load JS files
+        if (data.js) {
+            data.js.forEach(jsPath => {
+                if (!loadedJS.has(jsPath)) {
+                    const script = document.createElement('script');
+                    script.src = jsPath;
+                    document.body.appendChild(script);
+                    loadedJS.add(jsPath);
+                }
+            });
         }
-    });
-}
+    }
+    
+    function reinitializeScripts(url) {
+        // Reinitialize page-specific scripts
+        const route = routes[url];
+        if (!route) return;
+        
+        setTimeout(() => {
+            if (route.name === 'overview' && typeof initFacultyDashboard === 'function') {
+                initFacultyDashboard();
+            } else if (route.name === 'form-builder' && typeof initFormBuilder === 'function') {
+                initFormBuilder();
+            }
+        }, 50);
+    }
+    
+    function preloadAllPages() {
+        // Preload all pages after 1 second for instant switching
+        setTimeout(() => {
+            Object.keys(routes).forEach(url => {
+                if (!pageCache.has(url) && url !== window.location.pathname) {
+                    fetch(routes[url].api, {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            pageCache.set(url, {
+                                html: data.html,
+                                title: data.title,
+                                css: data.css || [],
+                                js: data.js || []
+                            });
+                            console.log('✓ Preloaded:', url);
+                        }
+                    })
+                    .catch(() => {}); // Silent fail
+                }
+            });
+        }, 1000);
+    }
+    
+})();

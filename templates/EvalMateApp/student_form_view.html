@@ -28,7 +28,10 @@
                         <div class="form-group">
                             <label><i class="far fa-question-circle"></i> {{ q.text }}{% if q.required %} <span style="color: #ef4444;">*</span>{% endif %}</label>
                             {% if q.type == 'text' %}
-                                <textarea name="{{ q.id }}" class="form-input" {% if q.required %}required{% endif %}></textarea>
+                                <textarea name="{{ q.id }}" class="form-input" {% if q.required %}required{% endif %} {% if q.options.characterLimit %}maxlength="{{ q.options.characterLimit }}"{% endif %}></textarea>
+                                {% if q.options.characterLimit %}
+                                <small style="color: #666;">Character limit: {{ q.options.characterLimit }}</small>
+                                {% endif %}
                             {% elif q.type == 'multiple' %}
                                 {% for opt in q.options.options %}
                                     <label style="font-weight: normal; margin-left: 1rem;">

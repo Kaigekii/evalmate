@@ -21,11 +21,11 @@
     <!-- Response Header -->
     <div class="response-detail-header">
         <div class="response-detail-header__avatar">
-            <span>{{ response.submitted_by.first_name.0 }}{{ response.submitted_by.last_name.0 }}</span>
+            <span>{% if is_anonymous %}A{% else %}{{ response.submitted_by.first_name.0 }}{{ response.submitted_by.last_name.0 }}{% endif %}</span>
         </div>
         <div class="response-detail-header__content">
             <h1 class="response-detail-header__title">
-                {{ response.submitted_by.first_name }} {{ response.submitted_by.last_name }}'s Evaluation
+                {% if is_anonymous %}Anonymous Evaluation{% else %}{{ response.submitted_by.first_name }} {{ response.submitted_by.last_name }}'s Evaluation{% endif %}
             </h1>
             <div class="response-detail-header__meta">
                 <span class="meta-item">
@@ -40,10 +40,12 @@
                     <i class="far fa-clock"></i>
                     Submitted {{ response.submitted_at|date:"F d, Y" }} at {{ response.submitted_at|date:"g:i A" }}
                 </span>
+                {% if not is_anonymous %}
                 <span class="meta-item">
                     <i class="fas fa-envelope"></i>
                     {{ response.submitted_by.user.email }}
                 </span>
+                {% endif %}
             </div>
         </div>
     </div>

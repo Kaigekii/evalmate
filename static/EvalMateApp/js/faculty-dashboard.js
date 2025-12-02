@@ -3,10 +3,19 @@
  * Interactive functionality for the faculty dashboard
  */
 
+// Ensure showNotification is available globally
+window.showNotification = function(message, type = 'info') {
+    if (typeof notificationManager !== 'undefined') {
+        notificationManager.show(message, type);
+    } else {
+        console.error('NotificationManager not loaded!', message, type);
+        alert(message); // Fallback
+    }
+};
+
 function initFacultyDashboard() {
-    // Initialize all components
+    // Initialize all components except quick actions
     initSidebar();
-    initQuickActions();
     initRecentActivities();
     initNavigation();
     initFormsTabs();
@@ -117,37 +126,6 @@ function initSidebar() {
 
 
 
-/**
- * Quick Actions Functionality
- */
-function initQuickActions() {
-    const actionCards = document.querySelectorAll('.action-card');
-    
-    actionCards.forEach(card => {
-        card.addEventListener('click', () => {
-            const title = card.querySelector('.action-card__title').textContent;
-            handleQuickAction(title);
-        });
-    });
-}
-
-/**
- * Handle quick action clicks
- */
-function handleQuickAction(actionTitle) {
-    console.log('Quick action clicked:', actionTitle);
-    
-    // TODO: Implement navigation or modal opening based on action
-    if (actionTitle.includes('Create New Evaluation')) {
-        // Navigate to form builder or open creation modal
-        console.log('Opening evaluation creation form...');
-        // window.location.href = '/form-builder/create';
-    } else if (actionTitle.includes('View Reports')) {
-        // Navigate to reports page
-        console.log('Opening reports page...');
-        // window.location.href = '/reports';
-    }
-}
 
 /**
  * Recent Activities Functionality
@@ -462,8 +440,18 @@ function initFormsTabs() {
         console.log('Card status:', card.dataset.status);
     });
     
+    // Remove any existing click handlers by cloning and replacing nodes
+    tabs.forEach((tab) => {
+        const newTab = tab.cloneNode(true);
+        tab.parentNode.replaceChild(newTab, tab);
+    });
+    
+    // Get the new tabs after replacement
+    const newTabs = document.querySelectorAll('.forms-tab');
+    const newFormCards = document.querySelectorAll('.form-card');
+    
     // Add click handlers to each tab
-    tabs.forEach((tab, index) => {
+    newTabs.forEach((tab, index) => {
         console.log(`Setting up tab ${index}:`, tab.dataset.tab);
         
         tab.addEventListener('click', function(e) {
@@ -474,7 +462,7 @@ function initFormsTabs() {
             console.log(`\n=== TAB CLICKED: ${filter} ===`);
             
             // Remove active class from all tabs
-            tabs.forEach(t => {
+            newTabs.forEach(t => {
                 t.classList.remove('forms-tab--active');
             });
             
@@ -484,7 +472,7 @@ function initFormsTabs() {
             
             // Filter cards
             let visibleCount = 0;
-            formCards.forEach(card => {
+            newFormCards.forEach(card => {
                 const status = card.dataset.status;
                 let shouldShow = false;
                 
@@ -492,7 +480,7 @@ function initFormsTabs() {
                     shouldShow = true;
                 } else if (filter === 'published' && status === 'published') {
                     shouldShow = true;
-                } else if (filter === 'drafts' && status === 'draft') {
+                } else if (filter === 'unpublished' && status === 'unpublished') {
                     shouldShow = true;
                 }
                 
@@ -510,12 +498,12 @@ function initFormsTabs() {
             const tabEmptyState = document.getElementById('tabEmptyState');
             const tabEmptyStateText = document.getElementById('tabEmptyStateText');
             
-            if (tabEmptyState && visibleCount === 0 && formCards.length > 0) {
+            if (tabEmptyState && visibleCount === 0 && newFormCards.length > 0) {
                 // Update empty state message based on filter
                 if (filter === 'published') {
-                    tabEmptyStateText.textContent = 'No published forms yet. Publish a draft to see it here.';
-                } else if (filter === 'drafts') {
-                    tabEmptyStateText.textContent = 'No draft forms yet. Unpublish a form or create a new one to see drafts here.';
+                    tabEmptyStateText.textContent = 'No published forms yet. Publish an unpublished form to see it here.';
+                } else if (filter === 'unpublished') {
+                    tabEmptyStateText.textContent = 'No unpublished forms. Unpublish a form or create a new one to see it here.';
                 } else {
                     tabEmptyStateText.textContent = 'No forms match the selected filter.';
                 }
@@ -530,212 +518,156 @@ function initFormsTabs() {
 }
 
 /**
- * Form Actions - Edit, Duplicate, Delete
+ * Form Actions - Edit, Delete
  */
 function editForm(formId) {
     // Navigate to form builder with edit mode
     window.location.href = `/dashboard/faculty/form-builder/?edit=${formId}`;
 }
 
-function duplicateForm(formId) {
-    if (!confirm('Create a duplicate of this form? It will be saved as a draft.')) {
+function deleteForm(formId, formTitle) {
+    if (typeof notificationManager === 'undefined') {
+        if (confirm(`Are you sure you want to delete "${formTitle}"? This action cannot be undone.`)) {
+            executeDeleteForm(formId);
+        }
         return;
     }
     
-    // Get CSRF token
-    const csrftoken = getCookie('csrftoken');
-    
-    // Show loading indicator
-    showNotification('Duplicating form...', 'info');
-    
-    // Make API call to duplicate form
-    fetch(`/api/forms/${formId}/duplicate/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Form duplicated successfully!', 'success');
-            // Fetch and add the new form to the list dynamically
-            fetchFormDetails(data.form_id).then(newForm => {
-                if (newForm) {
-                    addFormToList(newForm);
-                    updateFormStatistics();
-                }
-            });
-        } else {
-            showNotification('Error duplicating form: ' + (data.error || 'Unknown error'), 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error duplicating form. Please try again.', 'error');
-    });
+    notificationManager.confirm(
+        `Are you sure you want to delete "${formTitle}"? This action cannot be undone.`,
+        () => executeDeleteForm(formId)
+    );
 }
 
-function deleteForm(formId, formTitle) {
-    if (!confirm(`Are you sure you want to delete "${formTitle}"? This action cannot be undone.`)) {
-        return;
-    }
+function executeDeleteForm(formId) {
+            // Get CSRF token
+            const csrftoken = getCookie('csrftoken');
+            
+            // Show loading indicator
+            showNotification('Deleting form...', 'loading');
     
-    // Get CSRF token
-    const csrftoken = getCookie('csrftoken');
-    
-    // Show loading indicator
-    showNotification('Deleting form...', 'info');
-    
-    // Make API call to delete form
-    fetch(`/api/forms/${formId}/delete/`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Form deleted successfully!', 'success');
-            // Remove the form card from DOM with animation
-            removeFormFromList(formId);
-            updateFormStatistics();
-        } else {
-            showNotification('Error deleting form: ' + (data.error || 'Unknown error'), 'error');
-        }
-    })
-    .catch(error => {  
-        console.error('Error:', error);
-        showNotification('Error deleting form. Please try again.', 'error');
-    });
+            // Make API call to delete form
+            fetch(`/api/forms/${formId}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Form deleted successfully!', 'success');
+                    // Remove the form card from DOM with animation
+                    removeFormFromList(formId);
+                    updateFormStatistics();
+                } else {
+                    showNotification('Error deleting form: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {  
+                console.error('Error:', error);
+                showNotification('Error deleting form. Please try again.', 'error');
+            });
 }
 
 function publishForm(formId, formTitle) {
-    if (!confirm(`Publish "${formTitle}"? Students will be able to search and access this form.`)) {
+    if (typeof notificationManager === 'undefined') {
+        if (confirm(`Publish "${formTitle}"? Students will be able to search and access this form.`)) {
+            executePublishForm(formId);
+        }
         return;
     }
     
-    const csrftoken = getCookie('csrftoken');
-    
-    showNotification('Publishing form...', 'info');
-    
-    fetch(`/api/forms/${formId}/publish/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message || 'Form published successfully!', 'success');
-            // Update the form card in place
-            updateFormStatus(formId, 'published');
-            updateFormStatistics();
-            // Broadcast change to other tabs/pages
-            broadcastFormStatusChange(formId, 'published');
-        } else {
-            showNotification(data.message || 'Error publishing form', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error publishing form. Please try again.', 'error');
-    });
+    notificationManager.confirm(
+        `Publish "${formTitle}"? Students will be able to search and access this form.`,
+        () => executePublishForm(formId)
+    );
+}
+
+function executePublishForm(formId) {
+            const csrftoken = getCookie('csrftoken');
+            
+            showNotification('Publishing form...', 'loading');
+            
+            fetch(`/api/forms/${formId}/publish/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message || 'Form published successfully!', 'success');
+                    // Update the form card in place
+                    updateFormStatus(formId, 'published');
+                    updateFormStatistics();
+                    // Broadcast change to other tabs/pages
+                    broadcastFormStatusChange(formId, 'published');
+                } else {
+                    showNotification(data.message || 'Error publishing form', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error publishing form. Please try again.', 'error');
+            });
 }
 
 function unpublishForm(formId, formTitle) {
-    if (!confirm(`Move "${formTitle}" to drafts? Students will no longer be able to access this form.`)) {
+    if (typeof notificationManager === 'undefined') {
+        if (confirm(`Unpublish "${formTitle}"? Students will no longer be able to access this form.`)) {
+            executeUnpublishForm(formId);
+        }
         return;
     }
     
-    const csrftoken = getCookie('csrftoken');
-    
-    showNotification('Moving to drafts...', 'info');
-    
-    fetch(`/api/forms/${formId}/unpublish/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message || 'Form moved to drafts!', 'success');
-            // Update the form card in place
-            updateFormStatus(formId, 'draft');
-            updateFormStatistics();
-            // Broadcast change to other tabs/pages
-            broadcastFormStatusChange(formId, 'draft');
-        } else {
-            showNotification(data.message || 'Error unpublishing form', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error unpublishing form. Please try again.', 'error');
-    });
+    notificationManager.confirm(
+        `Unpublish "${formTitle}"? Students will no longer be able to access this form.`,
+        () => executeUnpublishForm(formId)
+    );
 }
 
-/**
- * Show notification toast
- */
-function showNotification(message, type = 'info') {
-    // Remove any existing notifications
-    const existingNotification = document.querySelector('.notification-toast');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
+function executeUnpublishForm(formId) {
+            const csrftoken = getCookie('csrftoken');
+            
+            showNotification('Unpublishing form...', 'loading');
     
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification-toast notification-toast--${type}`;
-    notification.innerHTML = `
-        <div class="notification-toast__content">
-            <i class="fas fa-${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="notification-toast__close" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    // Add to DOM
-    document.body.appendChild(notification);
-    
-    // Trigger animation
-    setTimeout(() => notification.classList.add('notification-toast--show'), 10);
-    
-    // Auto-remove after 4 seconds
-    setTimeout(() => {
-        notification.classList.remove('notification-toast--show');
-        setTimeout(() => notification.remove(), 300);
-    }, 4000);
+            fetch(`/api/forms/${formId}/unpublish/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message || 'Form unpublished successfully!', 'success');
+                    // Update the form card in place
+                    updateFormStatus(formId, 'unpublished');
+                    updateFormStatistics();
+                    // Broadcast change to other tabs/pages
+                    broadcastFormStatusChange(formId, 'unpublished');
+                } else {
+                    showNotification(data.message || 'Error unpublishing form', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error unpublishing form. Please try again.', 'error');
+            });
 }
 
-function getNotificationIcon(type) {
-    const icons = {
-        success: 'check-circle',
-        error: 'exclamation-circle',
-        warning: 'exclamation-triangle',
-        info: 'info-circle'
-    };
-    return icons[type] || 'info-circle';
-}
+// Notification function removed - now using global notificationManager from notifications.js
 
 /**
  * Fetch form details from server
@@ -768,13 +700,16 @@ async function fetchFormDetails(formId) {
  * Create HTML for a form card
  */
 function createFormCardHTML(form) {
-    const status = form.privacy === 'private' ? 'draft' : 'published';
-    const badge = status === 'draft' ? 'DRAFT' : 'PUBLISHED';
-    const badgeClass = status === 'draft' ? 'draft' : 'published';
+    const status = form.privacy === 'private' ? 'unpublished' : 'published';
+    const badge = status === 'unpublished' ? 'UNPUBLISHED' : 'PUBLISHED';
+    const badgeClass = status === 'unpublished' ? 'unpublished' : 'published';
     
-    const publishButton = status === 'draft' 
+    const actionButtons = status === 'unpublished' 
         ? `<button class="btn-icon btn-icon--publish" title="Publish Form" onclick="publishForm(${form.id}, '${escapeHtml(form.title)}')">
                 <i class="fas fa-upload"></i>
+           </button>
+           <button class="btn-icon btn-icon--edit" title="Edit Form" onclick="editForm(${form.id})">
+                <i class="fas fa-edit"></i>
            </button>`
         : `<button class="btn-icon btn-icon--unpublish" title="Unpublish Form" onclick="unpublishForm(${form.id}, '${escapeHtml(form.title)}')">
                 <i class="fas fa-download"></i>
@@ -785,7 +720,7 @@ function createFormCardHTML(form) {
         ? `${sectionCount} section${sectionCount !== 1 ? 's' : ''}`
         : 'Not configured';
     
-    const footer = status !== 'draft' 
+    const footer = status !== 'unpublished' 
         ? `<div class="form-card__footer">
                 <div class="form-card__stats">
                     <span class="stat-item">
@@ -807,13 +742,7 @@ function createFormCardHTML(form) {
                     </span>
                 </div>
                 <div class="form-card__actions">
-                    ${publishButton}
-                    <button class="btn-icon btn-icon--edit" title="Edit Form" onclick="editForm(${form.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon btn-icon--duplicate" title="Duplicate Form" onclick="duplicateForm(${form.id})">
-                        <i class="fas fa-copy"></i>
-                    </button>
+                    ${actionButton}
                     <button class="btn-icon btn-icon--delete" title="Delete Form" onclick="deleteForm(${form.id}, '${escapeHtml(form.title)}')">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -980,11 +909,11 @@ function updateFormStatus(formId, newStatus) {
     
     // Update badge
     const badge = formCard.querySelector('.form-card__badge');
-    const badgeClass = newStatus === 'draft' ? 'draft' : 'published';
-    const badgeText = newStatus === 'draft' ? 'DRAFT' : 'PUBLISHED';
+    const badgeClass = newStatus === 'unpublished' ? 'unpublished' : 'published';
+    const badgeText = newStatus === 'unpublished' ? 'UNPUBLISHED' : 'PUBLISHED';
     
     // Force remove old classes first
-    badge.classList.remove('form-card__badge--draft', 'form-card__badge--published');
+    badge.classList.remove('form-card__badge--unpublished', 'form-card__badge--published', 'form-card__badge--draft');
     
     // Add new class
     badge.classList.add('form-card__badge', `form-card__badge--${badgeClass}`);
@@ -999,20 +928,23 @@ function updateFormStatus(formId, newStatus) {
     
     // Update action buttons
     const actionsDiv = formCard.querySelector('.form-card__actions');
-    const publishButton = newStatus === 'draft'
+    const actionButtons = newStatus === 'unpublished'
         ? `<button class="btn-icon btn-icon--publish" title="Publish Form" onclick="publishForm(${formId}, '${escapeHtml(formCard.querySelector('.form-card__title').textContent)}')">
                 <i class="fas fa-upload"></i>
+           </button>
+           <button class="btn-icon btn-icon--edit" title="Edit Form" onclick="editForm(${formId})">
+                <i class="fas fa-edit"></i>
            </button>`
         : `<button class="btn-icon btn-icon--unpublish" title="Unpublish Form" onclick="unpublishForm(${formId}, '${escapeHtml(formCard.querySelector('.form-card__title').textContent)}')">
                 <i class="fas fa-download"></i>
            </button>`;
     
-    // Get other buttons
-    const editButton = actionsDiv.querySelector('.btn-icon--edit').outerHTML;
-    const duplicateButton = actionsDiv.querySelector('.btn-icon--duplicate').outerHTML;
-    const deleteButton = actionsDiv.querySelector('.btn-icon--delete').outerHTML;
+    // Get delete button (safely)
+    const deleteBtn = actionsDiv.querySelector('.btn-icon--delete');
     
-    actionsDiv.innerHTML = publishButton + editButton + duplicateButton + deleteButton;
+    const deleteButton = deleteBtn ? deleteBtn.outerHTML : '';
+    
+    actionsDiv.innerHTML = actionButtons + deleteButton;
     
     // Update footer (add/remove based on status)
     const existingFooter = formCard.querySelector('.form-card__footer');
@@ -1031,7 +963,7 @@ function updateFormStatus(formId, newStatus) {
             <a href="/dashboard/faculty/reports/?form=${formId}" class="btn-link">View Submissions</a>
         `;
         infoDiv.after(footer);
-    } else if (newStatus === 'draft' && existingFooter) {
+    } else if (newStatus === 'unpublished' && existingFooter) {
         // Remove footer
         existingFooter.remove();
     }
@@ -1055,7 +987,7 @@ function updateFormStatus(formId, newStatus) {
             shouldBeVisible = true;
         } else if (filter === 'published' && newStatus === 'published') {
             shouldBeVisible = true;
-        } else if (filter === 'drafts' && newStatus === 'draft') {
+        } else if (filter === 'unpublished' && newStatus === 'unpublished') {
             shouldBeVisible = true;
         }
         

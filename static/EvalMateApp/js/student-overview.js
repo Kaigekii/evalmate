@@ -116,7 +116,9 @@ function initDashboard() {
     
     // Notification bell
     document.getElementById('notificationBtn')?.addEventListener('click', () => {
-        alert('Notifications feature coming soon!');
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Notifications feature coming soon!', 'info');
+        }
     });
 }
 
@@ -516,9 +518,36 @@ async function startEvaluation(formId) {
 }
 
 async function removePendingEvaluation(pendingId, title) {
-    notificationManager.confirm(
-        `Remove "${title}" from your pending evaluations?`,
-        async () => {
+    if (typeof notificationManager !== 'undefined') {
+        notificationManager.confirm(
+            `Remove "${title}" from your pending evaluations?`,
+            async () => {
+                try {
+                    const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to remove evaluation');
+                    }
+                    
+                    notificationManager.show('Evaluation removed successfully!', 'success');
+                    
+                    // Reload pending evaluations
+                    fetchPendingEvaluations();
+                    loadStats(); // Update overview stats
+                } catch (error) {
+                    console.error('Error removing evaluation:', error);
+                    notificationManager.show('Failed to remove evaluation. Please try again.', 'error');
+                }
+            }
+        );
+    } else {
+        // Fallback to confirm dialog
+        if (confirm(`Remove "${title}" from your pending evaluations?`)) {
             try {
                 const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
                     method: 'DELETE',
@@ -531,17 +560,21 @@ async function removePendingEvaluation(pendingId, title) {
                     throw new Error('Failed to remove evaluation');
                 }
                 
-                notificationManager.show('Evaluation removed successfully!', 'success');
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Evaluation removed successfully!', 'success');
+                }
                 
                 // Reload pending evaluations
                 fetchPendingEvaluations();
                 loadStats(); // Update overview stats
             } catch (error) {
                 console.error('Error removing evaluation:', error);
-                notificationManager.show('Failed to remove evaluation. Please try again.', 'error');
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Failed to remove evaluation. Please try again.', 'error');
+                }
             }
         }
-    );
+    }
 }
 
 function getCookie(name) {
@@ -560,35 +593,10 @@ function getCookie(name) {
 }
 
 function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification--${type}`;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        animation: slideInRight 0.3s ease;
-        max-width: 400px;
-        font-size: 14px;
-    `;
-    notification.textContent = message;
-    
-    // Add to body
-    document.body.appendChild(notification);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        notification.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
+    // Use NotificationManager if available
+    if (typeof notificationManager !== 'undefined') {
+        notificationManager.show(message, type);
+    }
 }
 
 // ==================== History Section ====================
@@ -816,9 +824,8 @@ async function handlePersonalInfoSubmit(event) {
     event.preventDefault();
     
     const formData = new FormData(event.target);
-    const data = Object.fromEntries(formData);
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    console.log('Saving personal info:', data);
+    console.log('Saving personal info (phone and date of birth only)');
     try {
         const res = await fetch('/api/profile/update-personal/', {
             method: 'POST',
@@ -829,12 +836,15 @@ async function handlePersonalInfoSubmit(event) {
         });
         const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save');
-        // Update top bar name immediately
-        document.querySelectorAll('.user__name').forEach(el => el.textContent = `${data.first_name} ${data.last_name}`);
-        alert('Personal information saved successfully!');
+        
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Personal information saved successfully!', 'success');
+        }
     } catch (error) {
         console.error('Error saving personal info:', error);
-        alert('Failed to save personal information. ' + (error.message || 'Please try again.'));
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Failed to save: ' + (error.message || 'Please try again'), 'error');
+        }
     }
 }
 
@@ -844,49 +854,18 @@ async function handleAcademicInfoSubmit(event) {
     const form = event.target;
     const formData = new FormData(form);
 
-    // Normalize Major: if 'Other' selected, use custom text
-    const majorSelect = document.getElementById('major');
-    const majorOther = document.getElementById('majorOther');
-    if (majorSelect && majorSelect.value === 'Other') {
-        const customMajor = (majorOther?.value || '').trim();
-        if (customMajor.length === 0) {
-            alert('Please specify your major.');
-            majorOther?.focus();
-            return;
+    // Validate department is selected
+    const departmentSelect = document.getElementById('department');
+    if (departmentSelect && !departmentSelect.value) {
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Please select a department.', 'warning');
         }
-        formData.set('major', customMajor);
+        departmentSelect?.focus();
+        return;
     }
 
-    // Normalize GPA: clamp 0–4 and round to 2 decimals
-    const gpaEl = document.getElementById('currentGPA');
-    if (gpaEl && gpaEl.value !== '') {
-        let g = Number(gpaEl.value);
-        if (isNaN(g)) {
-            alert('Invalid GPA value.');
-            gpaEl.focus();
-            return;
-        }
-        g = Math.max(0, Math.min(4, g));
-        g = Math.round(g * 100) / 100;
-        const gStr = g.toFixed(2);
-        gpaEl.value = gStr;
-        formData.set('current_gpa', gStr);
-    }
-
-    // Validate Expected Graduation (optional): ensure yyyy-mm-dd or empty
-    const eg = document.getElementById('expectedGraduation');
-    if (eg && eg.value) {
-        const valid = /^\d{4}-\d{2}-\d{2}$/.test(eg.value);
-        if (!valid) {
-            alert('Expected Graduation must be a valid date (YYYY-MM-DD).');
-            eg.focus();
-            return;
-        }
-    }
-
-    const data = Object.fromEntries(formData);
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    console.log('Saving academic info:', data);
+    console.log('Saving academic info (department and academic year only)');
     try {
         const res = await fetch('/api/profile/update-academic/', {
             method: 'POST',
@@ -899,21 +878,8 @@ async function handleAcademicInfoSubmit(event) {
         if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save');
 
         // Reflect saved values exactly as persisted by server
-        if (json.major !== undefined) {
-            const builtinOptions = Array.from(majorSelect.options).map(o => o.value);
-            if (builtinOptions.includes(json.major)) {
-                majorSelect.value = json.major || '';
-                if (majorOther) {
-                    majorOther.style.display = 'none';
-                    majorOther.value = '';
-                }
-            } else if (json.major) {
-                majorSelect.value = 'Other';
-                if (majorOther) {
-                    majorOther.style.display = 'block';
-                    majorOther.value = json.major;
-                }
-            }
+        if (json.department !== undefined && departmentSelect) {
+            departmentSelect.value = json.department || '';
         }
 
         if (json.academic_year !== undefined) {
@@ -921,77 +887,82 @@ async function handleAcademicInfoSubmit(event) {
             if (ay) ay.value = json.academic_year || '';
         }
 
-        if (json.expected_graduation !== undefined) {
-            const egVal = (json.expected_graduation || '').slice(0, 10);
-            const eg = document.getElementById('expectedGraduation');
-            if (eg) eg.value = egVal;
+        // Show success notification
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Academic information saved successfully!', 'success');
+            
+            // If department changed and forms were removed, show additional info notification
+            if (json.department_changed && json.removed_pending_forms && json.removed_pending_forms.length > 0) {
+                // Create detailed message
+                let detailMessage = `<strong>Department Changed</strong><br>${json.removed_pending_forms.length} form(s) removed from pending evaluations:<br>`;
+                json.removed_pending_forms.forEach(form => {
+                    detailMessage += `<br>• ${form.title}<br><small style="color: rgba(255,255,255,0.8); margin-left: 1rem;">Required: ${form.course_id}</small>`;
+                });
+                
+                // Show info notification that stays longer
+                notificationManager.show(detailMessage, 'info', 8000);
+            }
         }
-
-        if (json.current_gpa !== undefined) {
-            const gpaEl2 = document.getElementById('currentGPA');
-            if (gpaEl2) gpaEl2.value = json.current_gpa || '';
+        
+        // Refresh pending evaluations if any were removed
+        if (json.removed_pending_forms && json.removed_pending_forms.length > 0) {
+            if (typeof loadPendingEvaluations === 'function') {
+                loadPendingEvaluations();
+            }
         }
-
-        alert('Academic information saved successfully!');
     } catch (error) {
         console.error('Error saving academic info:', error);
-        alert('Failed to save academic information. ' + (error.message || 'Please try again.'));
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show('Failed to save: ' + (error.message || 'Please try again'), 'error');
+        }
     }
 }
 
 function setupAcademicFormEnhancements(academicForm) {
-    // Set min date for Expected Graduation to today
-    const eg = document.getElementById('expectedGraduation');
-    if (eg) {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        eg.min = `${yyyy}-${mm}-${dd}`;
-    }
-
-    // Major: toggle Other input
-    const majorSelect = document.getElementById('major');
-    const majorOther = document.getElementById('majorOther');
-    if (majorSelect) {
-        const builtinValues = Array.from(majorSelect.options).map(o => o.value).filter(Boolean);
-        const currentMajor = majorSelect.getAttribute('data-current-major') || '';
-        // If current major is non-empty and not in builtin list, select Other and display custom
-        if (currentMajor && !builtinValues.includes(currentMajor)) {
-            majorSelect.value = 'Other';
-            if (majorOther) {
-                majorOther.style.display = 'block';
-                majorOther.value = currentMajor;
+    // Department: populate based on user's institution
+    const departmentSelect = document.getElementById('department');
+    if (departmentSelect) {
+        const userInstitution = departmentSelect.getAttribute('data-user-institution') || '';
+        const currentDepartment = departmentSelect.getAttribute('data-current-department') || '';
+        
+        // Check if institutions data is available
+        if (typeof institutionsData !== 'undefined' && userInstitution && institutionsData[userInstitution]) {
+            // Populate departments for the user's institution
+            const departments = institutionsData[userInstitution];
+            
+            // Clear existing options except the first one
+            departmentSelect.innerHTML = '<option value="">Select Department</option>';
+            
+            // Add all departments for this institution
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                if (dept === currentDepartment) {
+                    option.selected = true;
+                }
+                departmentSelect.appendChild(option);
+            });
+            
+            // If current department is set but not in the list, add it and select it
+            if (currentDepartment && !departments.includes(currentDepartment)) {
+                const option = document.createElement('option');
+                option.value = currentDepartment;
+                option.textContent = currentDepartment + ' (Legacy)';
+                option.selected = true;
+                departmentSelect.appendChild(option);
+            }
+        } else {
+            console.warn('Institutions data not available or institution not found:', userInstitution);
+            // If institution data not available, just show current department
+            if (currentDepartment) {
+                const option = document.createElement('option');
+                option.value = currentDepartment;
+                option.textContent = currentDepartment;
+                option.selected = true;
+                departmentSelect.appendChild(option);
             }
         }
-
-        const toggleOther = () => {
-            if (!majorOther) return;
-            if (majorSelect.value === 'Other') {
-                majorOther.style.display = 'block';
-                majorOther.focus();
-            } else {
-                majorOther.style.display = 'none';
-                majorOther.value = '';
-            }
-        };
-        majorSelect.addEventListener('change', toggleOther);
-        toggleOther();
-    }
-
-    // GPA formatting on blur
-    const gpaEl = document.getElementById('currentGPA');
-    if (gpaEl) {
-        const format = () => {
-            if (gpaEl.value === '') return;
-            let g = Number(gpaEl.value);
-            if (isNaN(g)) return;
-            g = Math.max(0, Math.min(4, g));
-            gpaEl.value = (Math.round(g * 100) / 100).toFixed(2);
-        };
-        gpaEl.addEventListener('blur', format);
-        // Initial normalization of prefilled value
-        format();
     }
 }
 
@@ -1013,12 +984,16 @@ function handleProfilePictureChange(event) {
     
     if (file) {
         if (file.size > 5 * 1024 * 1024) {
-            alert('File size must be less than 5MB');
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.show('File size must be less than 5MB', 'error');
+            }
             return;
         }
         
         if (!['image/jpeg', 'image/png'].includes(file.type)) {
-            alert('Only JPG and PNG files are allowed');
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.show('Only JPG and PNG files are allowed', 'error');
+            }
             return;
         }
         
@@ -1060,15 +1035,21 @@ function handleProfilePictureChange(event) {
                 updateTopNavAvatar(data.image_url);
                 
                 // Show success message
-                alert('Profile picture updated successfully!');
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Profile picture updated successfully!', 'success');
+                }
             } else {
                 console.error('Upload failed:', data.error);
-                alert('Failed to upload profile picture: ' + (data.error || 'Unknown error'));
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Failed to upload profile picture: ' + (data.error || 'Unknown error'), 'error');
+                }
             }
         })
         .catch(error => {
             console.error('Upload error:', error);
-            alert('Failed to upload profile picture. Please try again.');
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.show('Failed to upload profile picture. Please try again.', 'error');
+            }
         });
     }
 }
@@ -1143,6 +1124,13 @@ function initSearch() {
             const formData = window.searchFormData?.find(f => f.id == formId);
             if (!formData) return;
             
+            // Check if form is expired
+            if (formData.is_expired) {
+                const dueDate = formData.due_date_str || 'its due date';
+                showNotification(`This form has already passed ${dueDate} and is no longer accepting responses.`, 'error');
+                return;
+            }
+            
             // Check if already in pending - just show message, don't add again
             if (formData.is_pending) {
                 showNotification('This form is already in your pending evaluations', 'info');
@@ -1155,34 +1143,38 @@ function initSearch() {
                 // Show passcode modal
                 openPasscodeModal(formId, formTitle);
             } else {
-                // No passcode required, add directly to pending
-                try {
-                    const response = await fetch('/api/student/pending-evaluations/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
-                        },
-                        body: JSON.stringify({ form_id: formId })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        showNotification(data.message, 'success');
-                        // Reload pending evaluations
-                        loadPendingEvaluations();
-                        // Hide search results
-                        hideSearchResults();
-                        // Clear search input
-                        searchInput.value = '';
-                        searchClear.classList.remove('search-bar__clear--visible');
-                    } else {
-                        showNotification(data.message || 'Failed to add form', 'error');
+                // No passcode required, show confirmation before adding
+                const confirmed = confirm(`Do you want to add "${formTitle}" to your pending evaluations?`);
+                
+                if (confirmed) {
+                    try {
+                        const response = await fetch('/api/student/pending-evaluations/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({ form_id: formId })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            showNotification(data.message, 'success');
+                            // Reload pending evaluations
+                            loadPendingEvaluations();
+                            // Hide search results
+                            hideSearchResults();
+                            // Clear search input
+                            searchInput.value = '';
+                            searchClear.classList.remove('search-bar__clear--visible');
+                        } else {
+                            showNotification(data.message || 'Failed to add form', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error adding form to pending:', error);
+                        showNotification('An error occurred. Please try again.', 'error');
                     }
-                } catch (error) {
-                    console.error('Error adding form to pending:', error);
-                    showNotification('An error occurred. Please try again.', 'error');
                 }
             }
         } else if (type === 'history') {
@@ -1282,17 +1274,41 @@ function renderSearchResults(forms, history) {
         html += '<div class="search-results__section-title">Available Forms</div>';
         forms.forEach((form, index) => {
             const isPending = form.is_pending;
+            const isExpired = form.is_expired;
+            const departmentMismatch = form.department_mismatch || false;
+            const expiredClass = isExpired ? ' search-result-item--expired' : '';
             const pendingClass = isPending ? ' search-result-item--already-pending' : '';
-            const badgeHtml = isPending 
-                ? `<span class="search-result-item__badge search-result-item__badge--already-pending">
-                       <i class="fas fa-check"></i> Already in Pending
-                   </span>`
-                : `<span class="search-result-item__badge search-result-item__badge--available">
-                       <i class="fas fa-plus-circle"></i> Available
-                   </span>`;
+            const mismatchClass = departmentMismatch ? ' search-result-item--department-mismatch' : '';
+            
+            let badgeHtml = '';
+            if (isExpired) {
+                badgeHtml = `<span class="search-result-item__badge search-result-item__badge--expired">
+                               <i class="fas fa-times-circle"></i> Expired
+                           </span>`;
+            } else if (departmentMismatch) {
+                badgeHtml = `<span class="search-result-item__badge search-result-item__badge--warning" title="This form requires students from the ${escapeHtml(form.required_department)} department">
+                               <i class="fas fa-exclamation-triangle"></i> Different Department Required
+                           </span>`;
+            } else if (isPending) {
+                badgeHtml = `<span class="search-result-item__badge search-result-item__badge--already-pending">
+                               <i class="fas fa-check"></i> Already in Pending
+                           </span>`;
+            } else {
+                badgeHtml = `<span class="search-result-item__badge search-result-item__badge--available">
+                               <i class="fas fa-plus-circle"></i> Available
+                           </span>`;
+            }
+            
+            // Add department requirement notice if there's a mismatch
+            let departmentNotice = '';
+            if (departmentMismatch && form.required_department) {
+                departmentNotice = `<div class="search-result-item__warning">
+                    <i class="fas fa-info-circle"></i> This form requires students from "${escapeHtml(form.required_department)}" department
+                </div>`;
+            }
             
             html += `
-                <div class="search-result-item search-result-item--form${pendingClass}" data-index="${index}" data-type="form" data-form-id="${form.id}">
+                <div class="search-result-item search-result-item--form${pendingClass}${expiredClass}${mismatchClass}" data-index="${index}" data-type="form" data-form-id="${form.id}" data-is-expired="${isExpired}" data-department-mismatch="${departmentMismatch}">
                     <div class="search-result-item__icon">
                         <i class="fas fa-file-alt"></i>
                     </div>
@@ -1302,6 +1318,7 @@ function renderSearchResults(forms, history) {
                             <span><i class="fas fa-book"></i> ${escapeHtml(form.course_id)}</span>
                             ${badgeHtml}
                         </div>
+                        ${departmentNotice}
                     </div>
                 </div>
             `;
@@ -1654,58 +1671,140 @@ function renderEvaluationDetails(data) {
     // Set modal title
     modalTitle.textContent = data.form_title;
     
+    // Helper function to render answer based on question type
+    const renderAnswer = (answer) => {
+        const type = answer.question_type;
+        const answerValue = answer.answer || 'No answer provided';
+        
+        if (type === 'rating') {
+            // Parse the answer value (should be a number 1-5)
+            const rating = parseInt(answerValue) || 0;
+            const labels = ['Poor', 'Below Average', 'Average', 'Good', 'Excellent'];
+            let ratingHTML = '<div class="rating-display">';
+            for (let i = 1; i <= 5; i++) {
+                const selected = i === rating ? 'rating-box-selected' : '';
+                ratingHTML += `
+                    <div class="rating-box ${selected}">
+                        <div class="rating-num">${i}</div>
+                        <div class="rating-text">${labels[i-1]}</div>
+                    </div>
+                `;
+            }
+            ratingHTML += '</div>';
+            return ratingHTML;
+        } else if (type === 'multiple') {
+            // Multiple choice - need to show all options with selected one
+            const options = answer.options || [];
+            let multipleHTML = '<div class="multiple-display">';
+            options.forEach(option => {
+                const selected = option === answerValue ? 'option-selected' : '';
+                multipleHTML += `
+                    <div class="option-box ${selected}">
+                        <span class="radio-circle"></span>
+                        <span>${escapeHtml(option)}</span>
+                    </div>
+                `;
+            });
+            multipleHTML += '</div>';
+            return multipleHTML;
+        } else if (type === 'checkbox') {
+            // Checkbox - multiple selections
+            const options = answer.options || [];
+            const selectedValues = answerValue.split(',').map(v => v.trim());
+            let checkboxHTML = '<div class="checkbox-display">';
+            options.forEach(option => {
+                const selected = selectedValues.includes(option) ? 'option-selected' : '';
+                checkboxHTML += `
+                    <div class="option-box ${selected}">
+                        <span class="check-square"></span>
+                        <span>${escapeHtml(option)}</span>
+                    </div>
+                `;
+            });
+            checkboxHTML += '</div>';
+            return checkboxHTML;
+        } else if (type === 'slider') {
+            // Slider display
+            const value = parseInt(answerValue) || 0;
+            const max = answer.max || 100;
+            const labels = answer.labels || ['Min', 'Max'];
+            const percent = (value / max) * 100;
+            return `
+                <div class="slider-display">
+                    <div class="slider-labels">
+                        <span>${escapeHtml(labels[0])}</span>
+                        <span>${escapeHtml(labels[1])}</span>
+                    </div>
+                    <div class="slider-bar">
+                        <div class="slider-fill" style="width: ${percent}%;"></div>
+                        <div class="slider-handle" style="left: ${percent}%;"></div>
+                    </div>
+                    <div class="slider-val">${value}</div>
+                </div>
+            `;
+        } else {
+            // Text, textarea, or other types
+            return `<div class="text-answer">${escapeHtml(answerValue)}</div>`;
+        }
+    };
+    
     // Build teammates sections HTML
     let teammatesHTML = '';
     data.teammates.forEach((teammate, index) => {
-        const submittedDate = new Date(teammate.submitted_at);
-        const formattedDate = submittedDate.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
         let answersHTML = '';
-        teammate.answers.forEach(answer => {
+        
+        teammate.answers.forEach((answer, idx) => {
             answersHTML += `
-                <div class="answer-item">
-                    <div class="answer-question">${escapeHtml(answer.question)}</div>
-                    <div class="answer-text">${escapeHtml(answer.answer || 'No answer provided')}</div>
+                <div class="response-item">
+                    <div class="response-number">${idx + 1}</div>
+                    <div class="response-content">
+                        <div class="response-question">
+                            <strong>${escapeHtml(answer.question_text)}</strong>
+                        </div>
+                        <div class="response-answer">
+                            ${renderAnswer(answer)}
+                        </div>
+                    </div>
                 </div>
             `;
         });
         
         teammatesHTML += `
-            <div class="teammate-section">
-                <div class="teammate-header">
-                    <i class="fas fa-user-circle"></i>
-                    <h3 class="teammate-name">${escapeHtml(teammate.teammate_name)}</h3>
-                    <span class="teammate-date">${formattedDate}</span>
+            <div class="eval-teammate-section">
+                <div class="eval-teammate-header">
+                    <div class="eval-teammate-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <h3 class="eval-teammate-name">${escapeHtml(teammate.teammate_name)}</h3>
                 </div>
-                ${answersHTML}
+                <div class="responses-container">
+                    ${answersHTML}
+                </div>
             </div>
         `;
     });
     
     // Render full modal content
     modalBody.innerHTML = `
-        <div class="modal__meta">
-            <div class="modal__meta-item">
-                <div class="modal__meta-label">Course</div>
-                <div class="modal__meta-value">${escapeHtml(data.course)}</div>
+        <div class="eval-meta-section">
+            <div class="eval-meta-item">
+                <i class="fas fa-book"></i>
+                <span class="eval-meta-label">Course:</span>
+                <span class="eval-meta-value">${escapeHtml(data.course)}</span>
             </div>
-            <div class="modal__meta-item">
-                <div class="modal__meta-label">Team</div>
-                <div class="modal__meta-value">${escapeHtml(data.team_identifier)}</div>
+            <div class="eval-meta-item">
+                <i class="fas fa-users"></i>
+                <span class="eval-meta-label">Team:</span>
+                <span class="eval-meta-value">${escapeHtml(data.team_identifier)}</span>
             </div>
-            <div class="modal__meta-item">
-                <div class="modal__meta-label">Teammates Evaluated</div>
-                <div class="modal__meta-value">${data.total_teammates}</div>
+            <div class="eval-meta-item">
+                <i class="fas fa-user-check"></i>
+                <span class="eval-meta-label">Teammates Evaluated:</span>
+                <span class="eval-meta-value">${data.total_teammates}</span>
             </div>
         </div>
         
-        ${data.description ? `<div class="modal__description">${escapeHtml(data.description)}</div>` : ''}
+        ${data.description ? `<div class="eval-description">${escapeHtml(data.description)}</div>` : ''}
         
         ${teammatesHTML}
     `;

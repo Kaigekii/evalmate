@@ -35,25 +35,52 @@ if (document.readyState === 'loading') {
  * Initialize navigation functionality
  */
 function initNavigation() {
-    // Get all sidebar links
-    const sidebarLinks = document.querySelectorAll('.sidebar__link');
+    // Get all sidebar links with SPA navigation
+    const spaLinks = document.querySelectorAll('.sidebar__link[data-spa-link]');
     
-    sidebarLinks.forEach(link => {
-        // Skip if it's a regular URL (not hash)
-        if (!link.getAttribute('href').startsWith('#')) {
-            return; // Allow regular URLs to work normally
-        }
-        
-        // For hash URLs, handle them specially
+    spaLinks.forEach(link => {
         link.addEventListener('click', (e) => {
-            if (link.getAttribute('href').startsWith('#')) {
-                e.preventDefault();
-                const targetId = link.getAttribute('href').substring(1);
-                // Handle navigation for hash links
-                console.log('Navigation to:', targetId);
+            e.preventDefault();
+            const href = link.getAttribute('href');
+            
+            if (href === '/dashboard/faculty/profile/') {
+                loadProfileSection();
             }
         });
     });
+}
+
+/**
+ * Load Profile Section
+ */
+async function loadProfileSection() {
+    const mainContent = document.getElementById('mainContent');
+    if (!mainContent) return;
+
+    try {
+        // Show loading state
+        mainContent.innerHTML = '<div style="text-align: center; padding: 3rem;"><i class="fas fa-spinner fa-spin fa-3x" style="color: #37353E;"></i></div>';
+
+        // Update browser URL
+        history.pushState({ page: 'profile' }, 'My Profile - EvalMate', '/dashboard/faculty/profile/');
+
+        // Fetch profile content
+        const response = await fetch('/api/faculty/profile-content/');
+        if (!response.ok) throw new Error('Failed to load profile');
+
+        const html = await response.text();
+        mainContent.innerHTML = html;
+
+        // Update active link
+        document.querySelectorAll('.sidebar__link').forEach(l => l.classList.remove('sidebar__link--active'));
+        const profileLink = document.querySelector('[href="/dashboard/faculty/profile/"]');
+        if (profileLink) profileLink.classList.add('sidebar__link--active');
+
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        showNotification('Failed to load profile section', 'error');
+        mainContent.innerHTML = '<div style="text-align: center; padding: 3rem;"><p>Failed to load profile. Please try again.</p></div>';
+    }
 }
 
 /**
@@ -344,11 +371,15 @@ window.addEventListener('resize', debounce(() => {
 function initSignOut() {
     const signOutBtn = document.getElementById('signOutBtn');
     
-    if (signOutBtn && !signOutBtn.dataset.initialized) {
-        signOutBtn.dataset.initialized = 'true';
-        signOutBtn.addEventListener('click', (e) => {
+    if (signOutBtn) {
+        // Remove any existing listeners by cloning the button
+        const newSignOutBtn = signOutBtn.cloneNode(true);
+        signOutBtn.parentNode.replaceChild(newSignOutBtn, signOutBtn);
+        
+        // Add fresh event listener
+        newSignOutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            showSignOutModal(signOutBtn.href);
+            showSignOutModal(newSignOutBtn.href);
         });
     }
 }

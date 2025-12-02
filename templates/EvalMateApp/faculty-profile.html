@@ -1,0 +1,12 @@
+{% extends 'EvalMateApp/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}My Profile - EvalMate{% endblock %}
+
+{% block content %}
+    {% include 'EvalMateApp/partials/faculty_profile_content.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'EvalMateApp/js/faculty-profile.js' %}?v=9"></script>
+{% endblock %}

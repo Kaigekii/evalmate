@@ -4,7 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import UserRegisterForm, ProfileForm
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
@@ -253,7 +253,7 @@ def faculty_dashboard_view(request):
         form__created_by=profile,
         submitted_by__isnull=False
     ).select_related(
-        'form', 'submitted_by__user'
+        'form', 'submitted_by'
     ).order_by('submitted_by', '-submitted_at').distinct('submitted_by')[:3]
     
     # Get all forms - don't restrict fields since due_date is a property
@@ -307,6 +307,28 @@ def form_builder_view(request):
     }
     
     response = render(request, 'EvalMateApp/form-builder.html', context)
+    response['Cache-Control'] = 'private, no-cache, must-revalidate'
+    return response
+
+
+@cache_control(private=True, max_age=0, no_cache=True, no_store=True, must_revalidate=True)
+@login_required
+def faculty_profile_view(request):
+    """Faculty profile page view"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return redirect('student_dashboard')
+    except Exception as e:
+        return redirect('login')
+    
+    context = {
+        'user': request.user,
+        'profile': profile,
+        'timestamp': '5'
+    }
+    
+    response = render(request, 'EvalMateApp/faculty-profile.html', context)
     response['Cache-Control'] = 'private, no-cache, must-revalidate'
     return response
 
@@ -611,20 +633,41 @@ def student_search_forms(request):
         # Same Institution: only check institution match
         if f.privacy == 'institution' and f.institution and f.institution == profile.institution:
             visible.append(f)
-        # Same Institution and Course: check both institution AND department/course match
+        # Same Institution and Course: show forms from same institution but flag if department doesn't match
         elif f.privacy == 'institution_course' and f.institution and f.institution == profile.institution:
-            # Student's department must match the form's course_id
-            if f.course_id and profile.department and f.course_id.lower() == profile.department.lower():
-                visible.append(f)
+            # Show all forms in same institution, will check department match when accessing
+            visible.append(f)
 
     for f in visible:
+        # Check if form is expired
+        is_expired = False
+        due_date_str = None
+        if f.due_date:
+            from django.utils import timezone
+            now = timezone.now()
+            due_date = f.due_date
+            if due_date.tzinfo is None:
+                due_date = timezone.make_aware(due_date)
+            is_expired = now > due_date
+            due_date_str = due_date.strftime("%B %d, %Y at %I:%M %p")
+        
+        # Check if department matches for institution_course privacy
+        department_mismatch = False
+        if f.privacy == 'institution_course':
+            if not (f.course_id and profile.department and f.course_id.lower() == profile.department.lower()):
+                department_mismatch = True
+        
         results.append({
             'id': f.id,
             'title': f.title,
             'course_id': f.course_id,
             'created_at': f.created_at.isoformat(),
             'requires_passcode': bool(f.passcode),
-            'is_pending': f.id in pending_form_ids,  # Flag if already in pending
+            'is_pending': f.id in pending_form_ids,
+            'is_expired': is_expired,
+            'due_date_str': due_date_str,
+            'department_mismatch': department_mismatch,
+            'required_department': f.course_id if f.privacy == 'institution_course' else None,
         })
 
     return JsonResponse({'results': results})
@@ -659,15 +702,22 @@ def student_form_view(request, form_id):
 
     # Check privacy
     allowed = False
+    department_mismatch = False
+    
     if form.privacy == 'institution' and form.institution == profile.institution:
         allowed = True
     elif form.privacy == 'institution_course' and form.institution == profile.institution:
         # For institution_course, student's department must match form's course_id
         if form.course_id and profile.department and form.course_id.lower() == profile.department.lower():
             allowed = True
+        else:
+            department_mismatch = True
 
     if not allowed:
-        messages.error(request, 'This form is not available for your institution or course.')
+        if department_mismatch:
+            messages.error(request, f'This form is only available for students in the "{form.course_id}" department. Your current department is "{profile.department}". Please note that changing your department may affect your access to certain forms.')
+        else:
+            messages.error(request, 'This form is not available for your institution or course.')
         return redirect('student_dashboard')
 
     # Clear any old messages before showing passcode page
@@ -1186,15 +1236,19 @@ def student_eval_team_setup(request, form_id):
         teammate_names = []
         for key, value in request.POST.items():
             if key.startswith('teammate_name_') and value.strip():
-                teammate_names.append(value.strip())
+                # Skip 'You' entries - they'll be added conditionally below
+                if value.strip().lower() != 'you':
+                    teammate_names.append(value.strip())
         
         # Check if self-evaluation is enabled
         allow_self_eval = settings.get('allowSelfEvaluation', False)
         
         # If self-evaluation is enabled, prepend 'You' to the list
         if allow_self_eval:
-            teammate_names.insert(0, 'You')
-            print(f"Self-evaluation enabled: Added 'You' as first teammate")
+            # Get the student's actual name from profile
+            student_name = f"{profile.first_name} {profile.last_name}" if profile.first_name else "You"
+            teammate_names.insert(0, student_name)
+            print(f"Self-evaluation enabled: Added '{student_name}' as first teammate")
         
         print(f"Teammate names found: {teammate_names}")
         print(f"Number of teammates: {len(teammate_names)}")
@@ -1261,11 +1315,21 @@ def student_eval_team_setup(request, form_id):
     
     # GET - show team setup form with settings
     # Pre-fill with existing session data if available
+    allow_self_eval = settings.get('allowSelfEvaluation', False)
+    existing_teammates = existing_session.get('teammate_names', [])
+    
+    # If self-evaluation is enabled and teammates exist, filter out the first entry (self)
+    display_teammates = existing_teammates.copy()
+    if allow_self_eval and display_teammates:
+        # Remove the first entry if it exists (this is the self-evaluation entry)
+        display_teammates = display_teammates[1:]
+    
     context = {
         'form': form,
         'settings_json': json.dumps(settings),
         'team_identifier': existing_session.get('team_identifier', ''),
-        'teammate_names': existing_session.get('teammate_names', []),
+        'teammate_names': json.dumps(display_teammates),  # Pass as JSON for JavaScript
+        'student_name': f"{profile.first_name} {profile.last_name}" if profile.first_name else "You",
     }
     return render(request, 'EvalMateApp/student_eval_team_setup.html', context)
 
@@ -1361,11 +1425,16 @@ def student_eval_evaluations(request, form_id):
     # Calculate actual completion count
     completed_count = len(evaluations)
     
+    # Check if self-evaluation is enabled
+    settings = form_structure.get('settings', {})
+    allow_self_eval = settings.get('allowSelfEvaluation', False)
+    
     print(f"Context prepared:")
     print(f"  Current teammate: {current_teammate}")
     print(f"  Completed teammates: {completed_teammates}")
     print(f"  Is editing existing: {is_editing_existing}")
     print(f"  Completed count: {completed_count}/{len(teammate_names)}")
+    print(f"  Self-evaluation enabled: {allow_self_eval}")
     
     context = {
         'form': form,
@@ -1382,6 +1451,7 @@ def student_eval_evaluations(request, form_id):
         'current_answers': current_teammate_answers,  # Pre-fill answers if editing
         'is_editing_existing': is_editing_existing,  # Flag to show if editing
         'completed_count': completed_count,  # Actual number of completed evaluations
+        'allow_self_evaluation': allow_self_eval,  # Pass to template
     }
     
     return render(request, 'EvalMateApp/student_eval_evaluations.html', context)
@@ -1531,9 +1601,7 @@ def student_eval_submit_evaluation(request, form_id):
         request.session[eval_session_key] = eval_data
         request.session.modified = True
         
-        # Save draft after each evaluation (only if not complete)
-        _save_evaluation_draft(profile, form, eval_data)
-        print(f"Draft saved after evaluating {current_teammate}")
+        print(f"Evaluation saved for {current_teammate}, moving to next")
     else:
         print(f"All teammates completed! Proceeding to final submission...")
     
@@ -1567,7 +1635,6 @@ def student_eval_submit_evaluation(request, form_id):
                         submitted_by=profile,
                         team_identifier=team_identifier,
                         teammate_name=teammate_name,
-                        is_draft=False,  # This is a final submission, not a draft
                     )
                     
                     print(f"FormResponse created with ID: {form_response.id}")
@@ -1592,14 +1659,6 @@ def student_eval_submit_evaluation(request, form_id):
                 # Remove from pending evaluations
                 deleted_count = PendingEvaluation.objects.filter(student=profile, form=form).delete()
                 print(f"Removed from pending evaluations: {deleted_count[0]} records deleted")
-                
-                # Delete all drafts for this form/team
-                draft_deleted = DraftResponse.objects.filter(
-                    student=profile, 
-                    form=form,
-                    team_identifier=team_identifier
-                ).delete()
-                print(f"Deleted drafts: {draft_deleted[0]} records")
                 
                 print("=== SUBMISSION COMPLETE ===")
             
@@ -1680,11 +1739,16 @@ def api_get_pending_evaluations(request):
             is_expired = False
             due_date = p.form.due_date
             if due_date:
-                now = datetime.now(timezone.utc)
-                # Ensure due_date is timezone aware
+                # Use local timezone instead of UTC
                 from django.utils import timezone as dj_tz
+                now = dj_tz.now()  # This uses Django's configured timezone
+                
+                # Ensure due_date is timezone aware
                 if due_date.tzinfo is None:
                     due_date = dj_tz.make_aware(due_date)
+                
+                # Debug logging
+                print(f"Form '{p.form.title}' - Due: {due_date}, Now: {now}, Expired: {now > due_date}")
                 
                 delta = due_date - now
                 days_left = delta.days
@@ -1702,18 +1766,15 @@ def api_get_pending_evaluations(request):
             max_team_size = settings.get('maxTeamSize', 'N/A')
             allow_self_eval = settings.get('allowSelfEvaluation', False)
             
-            # Check if draft exists
-            has_draft = DraftResponse.objects.filter(student=profile, form=p.form).exists()
-            
             # Determine status
             if is_expired:
                 status = 'expired'
-            elif has_draft:
-                status = 'in_progress'
             elif days_left is not None and days_left <= 3:
                 status = 'urgent'
             else:
                 status = 'not_started'
+            
+            has_draft = False
             
             evaluations_list.append({
                 'id': p.id,
@@ -1833,14 +1894,40 @@ def api_get_evaluation_detail(request, response_id):
             team_identifier=first_response.team_identifier
         ).prefetch_related('answers').order_by('teammate_name')
         
+        # Build question map from form structure
+        form = first_response.form
+        sections = form.structure.get('sections', []) if form.structure else []
+        question_map = {}
+        
+        for section in sections:
+            for question in section.get('questions', []):
+                question_id = question.get('id')
+                if question_id:
+                    question_map[str(question_id)] = question
+                    question_map[f"question_{question_id}"] = question
+        
         # Build response data
         teammates_data = []
         for resp in all_responses:
             answers_data = []
             for answer in resp.answers.all():
+                question_id = answer.question
+                question_data = question_map.get(question_id, {})
+                
+                # Get question options if available
+                options_data = question_data.get('options', {})
+                options_list = options_data.get('options', []) if isinstance(options_data, dict) else []
+                labels_list = options_data.get('labels', ['Min', 'Max']) if isinstance(options_data, dict) else ['Min', 'Max']
+                max_value = options_data.get('max', 100) if isinstance(options_data, dict) else 100
+                
                 answers_data.append({
-                    'question': answer.question,
-                    'answer': answer.answer
+                    'question_id': question_id,
+                    'question_text': question_data.get('text', 'Question not found'),
+                    'question_type': question_data.get('type', 'text'),
+                    'answer': answer.answer,
+                    'options': options_list,
+                    'labels': labels_list,
+                    'max': max_value
                 })
             
             teammates_data.append({
@@ -1858,117 +1945,6 @@ def api_get_evaluation_detail(request, response_id):
             'total_teammates': len(teammates_data)
         })
     
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@never_cache
-@login_required
-@csrf_exempt
-def api_save_draft(request):
-    """Save draft response for evaluation in progress"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST method required'}, status=400)
-    
-    try:
-        profile = request.user.profile
-        if profile.account_type != 'student':
-            return JsonResponse({'error': 'Access denied'}, status=403)
-        
-        data = json.loads(request.body)
-        form_id = data.get('form_id')
-        draft_data = data.get('draft_data', {})
-        team_identifier = data.get('team_identifier', '')
-        teammate_name = data.get('teammate_name', '')
-        
-        if not form_id:
-            return JsonResponse({'error': 'form_id required'}, status=400)
-        
-        form = get_object_or_404(FormTemplate, id=form_id)
-        
-        # Create or update draft
-        draft, created = DraftResponse.objects.update_or_create(
-            student=profile,
-            form=form,
-            team_identifier=team_identifier,
-            teammate_name=teammate_name,
-            defaults={'draft_data': draft_data}
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Draft saved successfully',
-            'draft_id': draft.id,
-            'last_saved': draft.last_saved.isoformat()
-        })
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@never_cache
-@login_required
-def api_get_draft(request, form_id):
-    """Get saved draft for a specific form"""
-    try:
-        profile = request.user.profile
-        if profile.account_type != 'student':
-            return JsonResponse({'error': 'Access denied'}, status=403)
-        
-        team_identifier = request.GET.get('team_identifier', '')
-        teammate_name = request.GET.get('teammate_name', '')
-        
-        # Get draft
-        draft = DraftResponse.objects.filter(
-            student=profile,
-            form_id=form_id,
-            team_identifier=team_identifier,
-            teammate_name=teammate_name
-        ).first()
-        
-        if draft:
-            return JsonResponse({
-                'has_draft': True,
-                'draft_data': draft.draft_data,
-                'last_saved': draft.last_saved.isoformat()
-            })
-        else:
-            return JsonResponse({'has_draft': False})
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@never_cache
-@login_required
-@csrf_exempt
-def api_delete_draft(request, form_id):
-    """Delete saved draft"""
-    if request.method != 'DELETE':
-        return JsonResponse({'error': 'DELETE method required'}, status=400)
-    
-    try:
-        profile = request.user.profile
-        if profile.account_type != 'student':
-            return JsonResponse({'error': 'Access denied'}, status=403)
-        
-        data = json.loads(request.body) if request.body else {}
-        team_identifier = data.get('team_identifier', '')
-        teammate_name = data.get('teammate_name', '')
-        
-        # Delete draft
-        DraftResponse.objects.filter(
-            student=profile,
-            form_id=form_id,
-            team_identifier=team_identifier,
-            teammate_name=teammate_name
-        ).delete()
-        
-        return JsonResponse({'success': True, 'message': 'Draft deleted successfully'})
     except Exception as e:
         import traceback
         print(traceback.format_exc())
@@ -2017,8 +1993,7 @@ def student_eval_navigate_teammate(request, form_id, teammate_index):
     request.session[eval_session_key] = eval_data
     request.session.modified = True
     
-    # Save draft with new position
-    _save_evaluation_draft(profile, form, eval_data)
+    print(f"Navigating to teammate index {teammate_index}")
     
     return redirect('student_eval_evaluations', form_id=form.id)
 
@@ -2107,41 +2082,33 @@ def api_upload_profile_picture(request):
 @never_cache
 @login_required
 def api_update_personal_info(request):
-    """Persist personal info fields to Profile"""
+    """Persist personal info fields to Profile (only phone_number and date_of_birth are editable)"""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=400)
 
     try:
         profile = request.user.profile
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
+        # Only allow updating phone_number and date_of_birth
+        # first_name, last_name, and email are locked fields
         phone_number = request.POST.get('phone_number', '').strip()
         dob = request.POST.get('date_of_birth', '').strip()
 
-        if not first_name or not last_name or not email:
-            return JsonResponse({'success': False, 'error': 'First name, last name and email are required.'}, status=400)
-
-        profile.first_name = first_name
-        profile.last_name = last_name
-        profile.email = email
         profile.phone_number = phone_number
         if dob:
             from datetime import datetime
             try:
-                profile.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
-            except Exception:
+                parsed_date = datetime.strptime(dob, '%Y-%m-%d').date()
+                # Validate date of birth is not after 2008-12-31
+                max_date = datetime(2008, 12, 31).date()
+                if parsed_date > max_date:
+                    return JsonResponse({'success': False, 'error': 'Date of birth cannot be after December 31, 2008.'}, status=400)
+                profile.date_of_birth = parsed_date
+            except ValueError:
                 return JsonResponse({'success': False, 'error': 'Invalid date format (YYYY-MM-DD).'}, status=400)
         else:
             profile.date_of_birth = None
 
-        profile.save()
-
-        # keep auth_user in sync
-        request.user.first_name = first_name
-        request.user.last_name = last_name
-        request.user.email = email
-        request.user.save(update_fields=['first_name', 'last_name', 'email'])
+        profile.save(update_fields=['phone_number', 'date_of_birth'])
 
         return JsonResponse({'success': True})
     except Exception as e:
@@ -2153,51 +2120,152 @@ def api_update_personal_info(request):
 @never_cache
 @login_required
 def api_update_academic_info(request):
-    """Persist academic info fields to Profile"""
+    """Persist academic info fields to Profile (department and academic_year for students, only academic_year for faculty)"""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=400)
 
     try:
         profile = request.user.profile
-        major = request.POST.get('major', '').strip()
+        is_faculty = profile.account_type == 'faculty'
+        
+        # For faculty, only academic_year is editable; department is locked
+        # For students, both department and academic_year are editable
+        department = request.POST.get('department', '').strip() if not is_faculty else profile.department
         academic_year = request.POST.get('academic_year', '').strip()
-        expected_graduation = request.POST.get('expected_graduation', '').strip()
-        current_gpa = request.POST.get('current_gpa', '').strip()
 
-        profile.major = major
+        # Validate that department belongs to user's institution (only for students)
+        if not is_faculty and department:
+            # Import institutions data (you may want to move this to settings or database)
+            institutions_data = {
+                "University of San Carlos (USC)": [
+                    "School of Architecture, Fine Arts & Design",
+                    "School of Arts & Sciences",
+                    "School of Business & Economics",
+                    "School of Education",
+                    "School of Engineering",
+                    "School of Health Care Professions",
+                    "School of Law & Governance"
+                ],
+                "University of San Jose–Recoletos (USJ-R)": [
+                    "School of Arts & Sciences",
+                    "School of Business & Management",
+                    "School of Education",
+                    "School of Engineering",
+                    "School of Computer Studies",
+                    "School of Allied Medical Sciences",
+                    "School of Law"
+                ],
+                "Cebu Normal University (CNU)": [
+                    "College of Nursing and Allied Health Sciences",
+                    "College of Teacher Education",
+                    "College of Culture, Arts, and Sports",
+                    "College of Computing, Artificial Intelligence, and Science",
+                    "College of Public Governance, Safety, and Sustainability",
+                    "College of Tourism, Hospitality, and Hotel Management"
+                ],
+                "Cebu Institute of Technology – University (CIT-U)": [
+                    "College of Engineering and Architecture",
+                    "College of Management, Business, and Accountancy",
+                    "College of Arts, Sciences, and Education",
+                    "College of Nursing and Allied Health Sciences",
+                    "College of Computer Studies",
+                    "College of Criminal Justice"
+                ],
+                "Southwestern University PHINMA (SWU PHINMA)": [
+                    "School of Medicine",
+                    "College of Dentistry",
+                    "College of Pharmacy",
+                    "College of Nursing",
+                    "College of Physical Therapy",
+                    "College of Veterinary Medicine",
+                    "School of Design + Communication",
+                    "College of Business and Accountancy",
+                    "College of Education",
+                    "College of Computer Studies",
+                    "College of Engineering",
+                    "College of Criminology",
+                    "College of Maritime Education"
+                ],
+                "University of the Visayas (UV)": [
+                    "College of Allied Health Sciences",
+                    "College of Business Administration",
+                    "College of Arts & Sciences",
+                    "College of Engineering, Technology, & Architecture",
+                    "College of Maritime Education",
+                    "College of Criminal Justice Education",
+                    "College of Education",
+                    "College of Law",
+                    "Graduate School"
+                ],
+                "Cebu Technological University — Main Campus (CTU Main)": [
+                    "College of Engineering & Technology",
+                    "College of Business, Management, & Administration",
+                    "College of Arts, Sciences, & Education",
+                    "College of Computer Studies / Information Technology",
+                    "College of Architecture",
+                    "College of Agriculture & Technical Vocations",
+                    "College of Nursing & Allied Health Sciences",
+                    "Other Technical or Vocational Departments"
+                ],
+                "University of the Philippines Cebu (UP Cebu)": [
+                    "College of Science — Department of Biology & Environmental Science",
+                    "College of Science — Department of Computer Science",
+                    "College of Science — Department of Mathematics & Statistics",
+                    "College of Communication, Arts, & Design",
+                    "College of Social Sciences",
+                    "School of Management"
+                ]
+            }
+            
+            user_institution = profile.institution
+            if user_institution in institutions_data:
+                valid_departments = institutions_data[user_institution]
+                # Allow current department even if not in list (legacy support)
+                if department not in valid_departments and department != profile.department:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'Department must belong to your institution ({user_institution}).'
+                    }, status=400)
+
+        # Check if department is changing (only relevant for students)
+        old_department = profile.department
+        department_changed = (old_department != department) and not is_faculty
+        
+        # Update fields based on account type
+        if not is_faculty:
+            profile.department = department
         profile.academic_year = academic_year
 
-        if expected_graduation:
-            from datetime import datetime
-            try:
-                profile.expected_graduation = datetime.strptime(expected_graduation, '%Y-%m-%d').date()
-            except Exception:
-                return JsonResponse({'success': False, 'error': 'Invalid date for expected graduation.'}, status=400)
-        else:
-            profile.expected_graduation = None
-
-        if current_gpa:
-            try:
-                gpa = float(current_gpa)
-                if gpa < 0 or gpa > 4.0:
-                    return JsonResponse({'success': False, 'error': 'GPA must be between 0.00 and 4.00.'}, status=400)
-                profile.current_gpa = round(gpa, 2)
-            except Exception:
-                return JsonResponse({'success': False, 'error': 'Invalid GPA value.'}, status=400)
-        else:
-            profile.current_gpa = None
-
         # Persist only updated fields
-        update_fields = ['major', 'academic_year', 'expected_graduation', 'current_gpa']
+        update_fields = ['academic_year'] if is_faculty else ['department', 'academic_year']
         profile.save(update_fields=update_fields)
+        
+        # If department changed (students only), remove pending evaluations that require same department
+        removed_forms = []
+        if department_changed and department:
+            # Get all pending evaluations with institution_course privacy
+            pending_evals = PendingEvaluation.objects.filter(
+                student=profile
+            ).select_related('form')
+            
+            for pending in pending_evals:
+                form = pending.form
+                # Check if form has institution_course privacy and department no longer matches
+                if form.privacy == 'institution_course':
+                    if not (form.course_id and form.course_id.lower() == department.lower()):
+                        removed_forms.append({
+                            'title': form.title,
+                            'course_id': form.course_id
+                        })
+                        pending.delete()
 
         # Return normalized values so UI can reflect exactly what was saved
         result = {
             'success': True,
-            'major': profile.major or '',
+            'department': profile.department or '',
             'academic_year': profile.academic_year or '',
-            'expected_graduation': profile.expected_graduation.isoformat() if profile.expected_graduation else '',
-            'current_gpa': f"{profile.current_gpa:.2f}" if profile.current_gpa is not None else '',
+            'removed_pending_forms': removed_forms,
+            'department_changed': department_changed
         }
         return JsonResponse(result)
     except Exception as e:
@@ -2224,7 +2292,7 @@ def api_faculty_overview_content(request):
             form__created_by=profile,
             submitted_by__isnull=False
         ).select_related(
-            'form', 'submitted_by__user'
+            'form', 'submitted_by'
         ).order_by('submitted_by', '-submitted_at').distinct('submitted_by')[:3]
         
         # Get all forms
@@ -2294,6 +2362,32 @@ def api_faculty_form_builder_content(request):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@never_cache
+@login_required
+def api_faculty_profile_content(request):
+    """API endpoint for SPA - returns only the content HTML for profile page"""
+    try:
+        profile = request.user.profile
+        if profile.account_type != 'faculty':
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        context = {
+            'user': request.user,
+            'profile': profile,
+            'timestamp': '5',  # Static version for cache busting
+        }
+        
+        # Render only the content section
+        from django.template.loader import render_to_string
+        html = render_to_string('EvalMateApp/partials/faculty_profile_content.html', context, request=request)
+        
+        return HttpResponse(html)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return HttpResponse('<div style="text-align: center; padding: 3rem;"><p>Error loading profile</p></div>', status=500)
 
 
 @never_cache

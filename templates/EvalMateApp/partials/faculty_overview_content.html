@@ -181,7 +181,13 @@
             {% for submission in recent_submissions %}
             <div class="activity-card">
                 <div class="activity-card__avatar">
-                    <span>{{ submission.submitted_by.first_name.0 }}{{ submission.submitted_by.last_name.0 }}</span>
+                    {% if submission.submitted_by.profile_picture_url %}
+                        <img src="{{ submission.submitted_by.profile_picture_url }}" alt="{{ submission.submitted_by.first_name }}" class="activity-card__avatar-img">
+                    {% elif submission.submitted_by.profile_picture %}
+                        <img src="{{ submission.submitted_by.profile_picture.url }}" alt="{{ submission.submitted_by.first_name }}" class="activity-card__avatar-img">
+                    {% else %}
+                        <span>{{ submission.submitted_by.first_name.0 }}{{ submission.submitted_by.last_name.0 }}</span>
+                    {% endif %}
                 </div>
                 <div class="activity-card__content">
                     <h3 class="activity-card__title">{{ submission.form.title }}</h3>

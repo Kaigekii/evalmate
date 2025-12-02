@@ -1,0 +1,191 @@
+/* ==========================================================================
+   Sidebar Notification System Styles
+   ========================================================================== */
+
+.notification-sidebar {
+    position: fixed;
+    top: 90px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    pointer-events: none;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(120%);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    min-width: 320px;
+    border-left: 4px solid transparent;
+}
+
+.notification-item.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification-item.hide {
+    opacity: 0;
+    transform: translateX(120%) scale(0.9);
+}
+
+/* Notification Icon */
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    font-size: 18px;
+}
+
+/* Notification Content */
+.notification-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.notification-message {
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+/* Close Button */
+.notification-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.notification-close:hover {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+/* Type-specific styles */
+.notification-success {
+    border-left-color: #10b981;
+}
+
+.notification-error {
+    border-left-color: #ef4444;
+}
+
+.notification-warning {
+    border-left-color: #f59e0b;
+}
+
+.notification-info {
+    border-left-color: #37353E;
+}
+
+.notification-loading {
+    border-left-color: #3b82f6;
+}
+
+.notification-confirm {
+    border-left-color: #f59e0b;
+}
+
+/* Confirmation Actions */
+.notification-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.notification-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.notification-btn--cancel {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.notification-btn--cancel:hover {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+.notification-btn--confirm {
+    background: linear-gradient(135deg, #37353E 0%, #44444E 100%);
+    color: white;
+}
+
+.notification-btn--confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(55, 53, 62, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .notification-sidebar {
+        right: 12px;
+        left: 12px;
+        max-width: none;
+        top: 80px;
+    }
+
+    .notification-item {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* Animation for multiple notifications */
+.notification-item:nth-child(1) {
+    transition-delay: 0s;
+}
+
+.notification-item:nth-child(2) {
+    transition-delay: 0.05s;
+}
+
+.notification-item:nth-child(3) {
+    transition-delay: 0.1s;
+}
+
+.notification-item:nth-child(4) {
+    transition-delay: 0.15s;
+}
+
+.notification-item:nth-child(5) {
+    transition-delay: 0.2s;
+}

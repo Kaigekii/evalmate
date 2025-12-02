@@ -74,10 +74,30 @@
                     <span class="form-help">Enter your team name or ID</span>
                 </div>
 
+                <!-- Self-Evaluation Member (if enabled) -->
+                <div class="form-group" id="selfEvalSection" style="display: none;">
+                    <span class="form-label">Self-Evaluation</span>
+                    <div class="teammate-item teammate-item--self" style="background: #F8F9FA; border: 1.5px solid #E0E0E0; border-radius: 12px; position: relative; padding: 12px 16px;">
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            value="{{ student_name }}"
+                            readonly
+                            style="background: transparent; border: none; font-weight: 500; color: #37353E; cursor: default; padding: 0;"
+                        >
+                        <span class="self-eval-badge" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: #37353E; color: white; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.3px;">
+                            <i class="fas fa-user-check" style="font-size: 10px; margin-right: 4px;"></i>YOU
+                        </span>
+                    </div>
+                    <span class="form-help" style="color: #6B7280;">
+                        <i class="fas fa-info-circle"></i> You will evaluate yourself as part of this team evaluation
+                    </span>
+                </div>
+
                 <!-- Teammate Names -->
                 <div class="form-group">
                     <span class="form-label form-label--required">Teammate Names</span>
-                    <span class="form-help">Enter the names of your teammates (excluding yourself)</span>
+                    <span class="form-help" id="teammateHelp">Enter the names of your teammates (excluding yourself)</span>
                     
                     <div class="teammate-list" id="teammateList">
                         <!-- Initial teammate fields will be added by JavaScript -->
@@ -145,14 +165,16 @@
             
             // Update display text based on self-evaluation setting
             if (allowSelfEvaluation) {
-                const total = teammates + 1;
-                teamSizeDisplay.innerHTML = `Team Size: <span id="teamSizeCount">${teammates}</span> teammates (+ you = ${total} total members)`;
+                const total = teammates + 1; // +1 for self
+                teamSizeDisplay.innerHTML = `Team Size: <span id="teamSizeCount">${teammates}</span> teammates + <strong style="color: #667eea;">You</strong> = ${total} total members`;
             } else {
                 teamSizeDisplay.innerHTML = `Team Size: <span id="teamSizeCount">${teammates}</span> teammates`;
             }
 
             // Enable/disable add button based on max
-            if (teammates >= maxTeamSize) {
+            // When self-eval is enabled, max includes self, so teammates can be max-1
+            const effectiveMax = allowSelfEvaluation ? (maxTeamSize - 1) : maxTeamSize;
+            if (teammates >= effectiveMax) {
                 addTeammateBtn.disabled = true;
                 addTeammateBtn.style.opacity = '0.5';
                 addTeammateBtn.style.cursor = 'not-allowed';
@@ -165,8 +187,9 @@
 
         function addTeammateField() {
             const teammates = teammateList.querySelectorAll('.teammate-item').length;
+            const effectiveMax = allowSelfEvaluation ? (maxTeamSize - 1) : maxTeamSize;
             
-            if (teammates >= maxTeamSize) {
+            if (teammates >= effectiveMax) {
                 return;
             }
 
@@ -243,21 +266,34 @@
         teamSetupForm.addEventListener('submit', function(e) {
             console.log('=== FORM SUBMIT TRIGGERED ===');
             const teammates = teammateList.querySelectorAll('.teammate-item').length;
+            const totalMembers = allowSelfEvaluation ? (teammates + 1) : teammates;
+            
             console.log('Number of teammates:', teammates);
+            console.log('Self-evaluation enabled:', allowSelfEvaluation);
+            console.log('Total members (including self):', totalMembers);
             console.log('Min required:', minTeamSize);
             console.log('Max allowed:', maxTeamSize);
             
-            if (teammates < minTeamSize) {
+            // Validation: Check total members against min/max
+            if (totalMembers < minTeamSize) {
                 e.preventDefault();
-                console.error('Too few teammates!');
-                alert(`You need at least ${minTeamSize} teammates. You currently have ${teammates}.`);
+                console.error('Too few team members!');
+                if (allowSelfEvaluation) {
+                    showNotification(`You need at least ${minTeamSize} total team members (including yourself). You currently have ${totalMembers}.`, 'error');
+                } else {
+                    showNotification(`You need at least ${minTeamSize} teammates. You currently have ${teammates}.`, 'error');
+                }
                 return false;
             }
 
-            if (teammates > maxTeamSize) {
+            if (totalMembers > maxTeamSize) {
                 e.preventDefault();
-                console.error('Too many teammates!');
-                alert(`Maximum ${maxTeamSize} teammates allowed. You currently have ${teammates}.`);
+                console.error('Too many team members!');
+                if (allowSelfEvaluation) {
+                    showNotification(`Maximum ${maxTeamSize} total team members allowed (including yourself). You currently have ${totalMembers}.`, 'error');
+                } else {
+                    showNotification(`Maximum ${maxTeamSize} teammates allowed. You currently have ${teammates}.`, 'error');
+                }
                 return false;
             }
             
@@ -284,7 +320,21 @@
         // Update the team size range display
         const teamSizeRange = document.getElementById('teamSizeRange');
         if (teamSizeRange) {
-            teamSizeRange.textContent = `Range: ${minTeamSize}-${maxTeamSize} teammates allowed`;
+            if (allowSelfEvaluation) {
+                teamSizeRange.textContent = `Range: ${minTeamSize}-${maxTeamSize} total members (including yourself)`;
+            } else {
+                teamSizeRange.textContent = `Range: ${minTeamSize}-${maxTeamSize} teammates`;
+            }
+        }
+
+        // Show self-evaluation section if enabled
+        const selfEvalSection = document.getElementById('selfEvalSection');
+        const teammateHelp = document.getElementById('teammateHelp');
+        if (allowSelfEvaluation && selfEvalSection) {
+            selfEvalSection.style.display = 'block';
+            if (teammateHelp) {
+                teammateHelp.innerHTML = '<i class="fas fa-users"></i> Enter the names of your other teammates';
+            }
         }
 
         // Show anonymous indicator if enabled
@@ -296,6 +346,11 @@
         // Initialize teammate fields
         initializeTeammateFields();
         
-        console.log('Team setup initialized successfully', { minTeamSize, maxTeamSize, anonymousEvaluations: settings.anonymousEvaluations });
+        console.log('Team setup initialized successfully', { 
+            minTeamSize, 
+            maxTeamSize, 
+            allowSelfEvaluation,
+            anonymousEvaluations: settings.anonymousEvaluations 
+        });
     </script>
 {% endblock %}

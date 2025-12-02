@@ -22,6 +22,17 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Django Messages as Notifications -->
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for message in messages %}
+                showNotification('{{ message|escapejs }}', '{{ message.tags|default:"info" }}');
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+    
     <!-- Simple Header -->
     <header class="eval-header">
         <div class="eval-header__logo">

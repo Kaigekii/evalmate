@@ -13,6 +13,7 @@ urlpatterns = [
     # Faculty Dashboard Routes
     path('dashboard/faculty/', views.faculty_dashboard_view, name='faculty_dashboard'),
     path('dashboard/faculty/form-builder/', views.form_builder_view, name='form_builder'),
+    path('dashboard/faculty/profile/', views.faculty_profile_view, name='faculty_profile'),
     path('dashboard/faculty/reports/', views.faculty_reports_view, name='faculty_reports'),
     path('dashboard/faculty/reports/<int:form_id>/', views.faculty_form_responses_view, name='faculty_form_responses'),
     path('dashboard/faculty/reports/<int:form_id>/student/<int:student_id>/team/<str:team_id>/', views.faculty_student_responses_view, name='faculty_student_responses'),
@@ -44,8 +45,6 @@ urlpatterns = [
     path('api/student/evaluation-history/', views.api_get_evaluation_history, name='api_get_evaluation_history'),
     path('api/student/evaluation-history/<int:response_id>/', views.api_get_evaluation_detail, name='api_get_evaluation_detail'),
     
-
-    
     # Profile API endpoints
     path('api/profile/upload-picture/', views.api_upload_profile_picture, name='api_upload_profile_picture'),
     path('api/profile/update-personal/', views.api_update_personal_info, name='api_update_personal_info'),
@@ -55,4 +54,5 @@ urlpatterns = [
     path('api/faculty/overview-content/', views.api_faculty_overview_content, name='api_faculty_overview_content'),
     path('api/faculty/form-builder-content/', views.api_faculty_form_builder_content, name='api_faculty_form_builder_content'),
     path('api/faculty/reports-content/', views.api_faculty_reports_content, name='api_faculty_reports_content'),
+    path('api/faculty/profile-content/', views.api_faculty_profile_content, name='api_faculty_profile_content'),
 ]

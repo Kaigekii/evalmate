@@ -15,8 +15,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Base Dashboard CSS -->
-    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}?v=7">
-    <link rel="stylesheet" href="{% static 'EvalMateApp/css/notifications.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}?v=9">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/notifications.css' %}?v=9">
     
     <!-- Page-specific CSS -->
     {% block extra_css %}{% endblock %}
@@ -28,7 +28,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar__header">
                 <div class="sidebar__logo" id="sidebarToggle">
-                    <div class="logo__square"></div>
+                    <div class="logo__square">EM</div>
                     <span class="logo__text">EvalMate</span>
                     <i class="fas fa-expand expand-icon"></i>
                 </div>
@@ -63,6 +63,10 @@
             <!-- Account Section -->
             <div class="sidebar__section sidebar__section--bottom">
                 <nav class="sidebar__nav">
+                    <a href="/dashboard/faculty/profile/" class="sidebar__link" data-spa-link>
+                        <i class="fas fa-user-circle"></i>
+                        <span>My Profile</span>
+                    </a>
                     <a href="{% url 'logout' %}" class="sidebar__link sidebar__link--signout" id="signOutBtn">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Sign Out</span>
@@ -82,12 +86,20 @@
                 <div class="topnav__actions">
                     <!-- User Profile -->
                     <div class="topnav__user">
+                        <div class="user__avatar">
+                            {% if profile.profile_picture_url %}
+                                <img src="{{ profile.profile_picture_url }}" alt="{{ profile.first_name }}" class="user__avatar-img">
+                            {% elif profile.profile_picture %}
+                                <img src="{{ profile.profile_picture.url }}" alt="{{ profile.first_name }}" class="user__avatar-img">
+                            {% elif profile.first_name and profile.last_name %}
+                                {{ profile.first_name|first}}{{ profile.last_name|first }}
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
                         <div class="user__info">
                             <span class="user__name">{{ profile.first_name }} {{ profile.last_name }}</span>
-                            <span class="user__role">{{ profile.account_type }}</span>
-                        </div>
-                        <div class="user__avatar">
-                            <i class="fas fa-user"></i>
+                            <span class="user__role">{{ profile.account_type|title }}</span>
                         </div>
                     </div>
                 </div>
@@ -108,7 +120,7 @@
         // Verify notification system loaded
         console.log('Notification Manager:', typeof notificationManager !== 'undefined' ? 'Loaded ✓' : 'Failed ✗');
     </script>
-    <script src="{% static 'EvalMateApp/js/spa-router.js' %}"></script>
+    <script src="{% static 'EvalMateApp/js/spa-router.js' %}?v=10"></script>
     
     <!-- Page-specific Scripts -->
     {% block extra_js %}{% endblock %}

@@ -5,7 +5,7 @@
 {% block title %}Response Detail - {{ form.title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}?v=9">
 {% endblock %}
 
 {% block content %}
@@ -21,7 +21,17 @@
     <!-- Response Header -->
     <div class="response-detail-header">
         <div class="response-detail-header__avatar">
-            <span>{% if is_anonymous %}A{% else %}{{ response.submitted_by.first_name.0 }}{{ response.submitted_by.last_name.0 }}{% endif %}</span>
+            {% if is_anonymous %}
+                <span>A</span>
+            {% else %}
+                {% if response.submitted_by.profile_picture_url %}
+                    <img src="{{ response.submitted_by.profile_picture_url }}" alt="{{ response.submitted_by.first_name }}" class="response-detail-header__avatar-img">
+                {% elif response.submitted_by.profile_picture %}
+                    <img src="{{ response.submitted_by.profile_picture.url }}" alt="{{ response.submitted_by.first_name }}" class="response-detail-header__avatar-img">
+                {% else %}
+                    <span>{{ response.submitted_by.first_name.0 }}{{ response.submitted_by.last_name.0 }}</span>
+                {% endif %}
+            {% endif %}
         </div>
         <div class="response-detail-header__content">
             <h1 class="response-detail-header__title">

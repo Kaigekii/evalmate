@@ -389,6 +389,15 @@ html {
     align-items: center;
     justify-content: center;
     font-size: var(--font-size-lg);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.user__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 /* ==========================================================================
@@ -789,6 +798,13 @@ html {
     font-weight: 600;
     font-size: var(--font-size-sm);
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.activity-card__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .activity-card__content {
@@ -1615,5 +1631,296 @@ html {
     background: linear-gradient(90deg, #37353E, #37353E);
     z-index: 9999;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   Faculty Profile Page Styles
+   ============================================================================ */
+
+.faculty-profile-page .profile-picture-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.faculty-profile-page .profile-picture-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.faculty-profile-page .profile-picture {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.faculty-profile-page .profile-picture__avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.faculty-profile-page .profile-picture__upload {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border: 3px solid var(--color-white);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-base);
+    box-shadow: var(--shadow-md);
+}
+
+.faculty-profile-page .profile-picture__upload:hover {
+    background: var(--color-secondary);
+    transform: scale(1.1);
+}
+
+.faculty-profile-page .profile-picture__info {
+    flex: 1;
+}
+
+.faculty-profile-page .profile-picture__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.faculty-profile-page .profile-picture__description {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.faculty-profile-page .profile-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    background: var(--color-white);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.faculty-profile-page .profile-tab {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    transition: var(--transition-base);
+}
+
+.faculty-profile-page .profile-tab:hover {
+    background: var(--color-hover);
+}
+
+.faculty-profile-page .profile-tab--active {
+    background: var(--color-primary);
+    color: var(--color-white);
+}
+
+.faculty-profile-page .profile-tab i {
+    font-size: 1.1rem;
+}
+
+.faculty-profile-page .tab-content-container {
+    position: relative;
+}
+
+.faculty-profile-page .tab-content {
+    display: none;
+}
+
+.faculty-profile-page .tab-content--active {
+    display: block;
+}
+
+.faculty-profile-page .form-section {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.faculty-profile-page .form-section__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.faculty-profile-page .form-section__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.faculty-profile-page .profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.faculty-profile-page .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.faculty-profile-page .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.faculty-profile-page .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.faculty-profile-page .field-lock-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    position: relative;
+    cursor: help;
+}
+
+.faculty-profile-page .field-lock-indicator i {
+    font-size: 0.75rem;
+}
+
+.faculty-profile-page .field-lock-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-dark);
+    color: var(--color-white);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-base);
+    margin-bottom: 0.25rem;
+}
+
+.faculty-profile-page .field-lock-indicator:hover .field-lock-tooltip {
+    opacity: 1;
+}
+
+.faculty-profile-page .form-input,
+.faculty-profile-page .form-select {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    color: var(--color-text-primary);
+    background: var(--color-white);
+    transition: var(--transition-base);
+    font-family: inherit;
+}
+
+.faculty-profile-page .form-input:focus,
+.faculty-profile-page .form-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(55, 53, 62, 0.1);
+}
+
+.faculty-profile-page .form-input--locked {
+    background: var(--color-light-bg);
+    color: var(--color-text-secondary);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.faculty-profile-page .form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.faculty-profile-page .btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.faculty-profile-page .btn-primary:hover {
+    background: var(--color-secondary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.faculty-profile-page .btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .faculty-profile-page .profile-picture-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .faculty-profile-page .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .faculty-profile-page .profile-tabs {
+        flex-direction: column;
+    }
 }
 

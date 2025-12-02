@@ -1,0 +1,418 @@
+{% extends 'EvalMateApp/base_dashboard.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Student Responses - {{ form.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+<style>
+    .view-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        background: #F3F4F6;
+        padding: 0.5rem;
+        border-radius: 12px;
+    }
+    
+    .view-tab {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: #6B7280;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .view-tab:hover {
+        color: #37353E;
+        background: rgba(55, 53, 62, 0.05);
+    }
+    
+    .view-tab.active {
+        background: linear-gradient(135deg, #37353E, #44444E);
+        color: white;
+        box-shadow: 0 4px 12px rgba(55, 53, 62, 0.3);
+    }
+    
+    .view-content {
+        display: none;
+    }
+    
+    .view-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .teammate-section {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 2px solid #E5E7EB;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    .teammate-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #F3F4F6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .teammate-avatar {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #715A5A, #8A7070);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+    
+    .teammate-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1F2937;
+    }
+    
+    .question-section {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 2px solid #E5E7EB;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    .question-header {
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #F3F4F6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .question-text {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1F2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .teammate-answer {
+        background: #F9FAFB;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid;
+        transition: all 0.2s ease;
+    }
+    
+    .teammate-answer:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateX(4px);
+    }
+    
+    .teammate-answer:nth-child(1) { border-left-color: #EF4444; }
+    .teammate-answer:nth-child(2) { border-left-color: #F59E0B; }
+    .teammate-answer:nth-child(3) { border-left-color: #10B981; }
+    .teammate-answer:nth-child(4) { border-left-color: #3B82F6; }
+    .teammate-answer:nth-child(5) { border-left-color: #8B5CF6; }
+    .teammate-answer:nth-child(6) { border-left-color: #EC4899; }
+    
+    .answer-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        color: #37353E;
+        margin-bottom: 0.5rem;
+        font-size: 0.9375rem;
+    }
+    
+    .color-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    
+    .answer-label:nth-child(1) .color-indicator { background: #EF4444; }
+    .answer-label:nth-child(2) .color-indicator { background: #F59E0B; }
+    .answer-label:nth-child(3) .color-indicator { background: #10B981; }
+    .answer-label:nth-child(4) .color-indicator { background: #3B82F6; }
+    .answer-label:nth-child(5) .color-indicator { background: #8B5CF6; }
+    .answer-label:nth-child(6) .color-indicator { background: #EC4899; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="response-detail-container">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="{% url 'faculty_form_responses' form.id %}" class="breadcrumb__link">
+            <i class="fas fa-arrow-left"></i> 
+            Back to Responses List
+        </a>
+    </div>
+
+    <!-- Student Header -->
+    <div class="reports-hero">
+        <div class="reports-hero__content">
+            <div class="reports-hero__icon">
+                <i class="fas fa-user-graduate" style="color: white;"></i>
+            </div>
+            <div>
+                <h1 class="reports-hero__title">
+                    {% if is_anonymous %}Anonymous Student{% else %}{{ student.first_name }} {{ student.last_name }}{% endif %}'s Evaluation
+                </h1>
+                <div class="responses-header__meta">
+                    <span class="meta-item" style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-clipboard-list" style="color: white;"></i>
+                        {{ form.title }}
+                    </span>
+                    <span class="meta-item" style="color: rgba(255,255,255,0.9);">
+                        <i class="far fa-clock" style="color: white;"></i>
+                        Submitted {{ submission_date|date:"M d, Y" }} at {{ submission_date|date:"g:i A" }}
+                    </span>
+                    {% if not is_anonymous %}
+                    <span class="meta-item" style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-envelope" style="color: white;"></i>
+                        {{ student.user.email }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="reports-hero__stats">
+            <div class="hero-stat">
+                <div class="hero-stat__value">{{ teammates_data|length }}</div>
+                <div class="hero-stat__label">Teammate{{ teammates_data|length|pluralize }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Mode Tabs -->
+    <div class="view-tabs">
+        <button class="view-tab active" onclick="switchView('by-person')" id="tab-by-person">
+            <i class="fas fa-user"></i>
+            <span>By Person</span>
+        </button>
+        <button class="view-tab" onclick="switchView('by-question')" id="tab-by-question">
+            <i class="fas fa-list-ul"></i>
+            <span>By Question</span>
+        </button>
+    </div>
+
+    <!-- By Person View -->
+    <div id="view-by-person" class="view-content active">
+        {% for teammate in teammates_data %}
+        <div class="teammate-section">
+            <div class="teammate-header">
+                <div class="teammate-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="teammate-name">{{ teammate.teammate_name }}</div>
+            </div>
+            
+            <div class="responses-container">
+                {% for answer in teammate.answers %}
+                <div class="response-item">
+                    <div class="response-number">{{ forloop.counter }}</div>
+                    <div class="response-content">
+                        <div class="response-question">
+                            <strong>{{ answer.question_data.text|default:"Question" }}</strong>
+                            {% if answer.question_data.required %}<span class="required-mark">*</span>{% endif %}
+                        </div>
+                        {% if answer.question_data.description %}
+                            <div class="response-description">{{ answer.question_data.description }}</div>
+                        {% endif %}
+                        
+                        <div class="response-answer">
+                            {% if answer.question_data.type == 'rating' %}
+                                <div class="rating-display">
+                                    {% for i in "12345" %}
+                                        <div class="rating-box {% if i == answer.answer|stringformat:'s' %}rating-box-selected{% endif %}">
+                                            <div class="rating-num">{{ i }}</div>
+                                            <div class="rating-text">
+                                                {% if i == '1' %}Poor
+                                                {% elif i == '2' %}Below Average
+                                                {% elif i == '3' %}Average
+                                                {% elif i == '4' %}Good
+                                                {% elif i == '5' %}Excellent
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif answer.question_data.type == 'text' %}
+                                <div class="text-answer">{{ answer.answer }}</div>
+                            
+                            {% elif answer.question_data.type == 'multiple' %}
+                                <div class="multiple-display">
+                                    {% for option in answer.question_data.options.options %}
+                                        <div class="option-box {% if option == answer.answer %}option-selected{% endif %}">
+                                            <span class="radio-circle"></span>
+                                            <span>{{ option }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif answer.question_data.type == 'checkbox' %}
+                                <div class="checkbox-display">
+                                    {% for option in answer.question_data.options.options %}
+                                        <div class="option-box {% if option in answer.answer %}option-selected{% endif %}">
+                                            <span class="check-square"></span>
+                                            <span>{{ option }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif answer.question_data.type == 'slider' %}
+                                <div class="slider-display">
+                                    <div class="slider-labels">
+                                        <span>{{ answer.question_data.options.labels.0 }}</span>
+                                        <span>{{ answer.question_data.options.labels.1 }}</span>
+                                    </div>
+                                    <div class="slider-bar">
+                                        {% widthratio answer.answer answer.question_data.options.max 100 as percent %}
+                                        <div class="slider-fill" style="width: {{ percent }}%;"></div>
+                                        <div class="slider-handle" style="left: {{ percent }}%;"></div>
+                                    </div>
+                                    <div class="slider-val">{{ answer.answer }}</div>
+                                </div>
+                            
+                            {% else %}
+                                <div class="simple-answer">{{ answer.answer }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- By Question View -->
+    <div id="view-by-question" class="view-content">
+        {% for question in by_question_data %}
+        <div class="question-section">
+            <div class="question-header">
+                <div class="question-text">
+                    {{ question.question_data.text|default:"Question" }}
+                    {% if question.question_data.required %}<span class="required-mark">*</span>{% endif %}
+                </div>
+                {% if question.question_data.description %}
+                    <div class="response-description">{{ question.question_data.description }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="answers-list">
+                {% for answer in question.answers %}
+                <div class="teammate-answer">
+                    <div class="answer-label">
+                        <span class="color-indicator"></span>
+                        <strong>{{ answer.teammate_name }}</strong>
+                    </div>
+                    <div class="response-answer">
+                        {% if question.question_data.type == 'rating' %}
+                            <div class="rating-display">
+                                {% for i in "12345" %}
+                                    <div class="rating-box {% if i == answer.answer|stringformat:'s' %}rating-box-selected{% endif %}">
+                                        <div class="rating-num">{{ i }}</div>
+                                        <div class="rating-text">
+                                            {% if i == '1' %}Poor
+                                            {% elif i == '2' %}Below Average
+                                            {% elif i == '3' %}Average
+                                            {% elif i == '4' %}Good
+                                            {% elif i == '5' %}Excellent
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif question.question_data.type == 'text' %}
+                            <div class="text-answer">{{ answer.answer }}</div>
+                        
+                        {% elif question.question_data.type == 'multiple' %}
+                            <div class="multiple-display">
+                                {% for option in question.question_data.options.options %}
+                                    <div class="option-box {% if option == answer.answer %}option-selected{% endif %}">
+                                        <span class="radio-circle"></span>
+                                        <span>{{ option }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif question.question_data.type == 'checkbox' %}
+                            <div class="checkbox-display">
+                                {% for option in question.question_data.options.options %}
+                                    <div class="option-box {% if option in answer.answer %}option-selected{% endif %}">
+                                        <span class="check-square"></span>
+                                        <span>{{ option }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        
+                        {% elif question.question_data.type == 'slider' %}
+                            <div class="slider-display">
+                                <div class="slider-labels">
+                                    <span>{{ question.question_data.options.labels.0 }}</span>
+                                    <span>{{ question.question_data.options.labels.1 }}</span>
+                                </div>
+                                <div class="slider-bar">
+                                    {% widthratio answer.answer question.question_data.options.max 100 as percent %}
+                                    <div class="slider-fill" style="width: {{ percent }}%;"></div>
+                                    <div class="slider-handle" style="left: {{ percent }}%;"></div>
+                                </div>
+                                <div class="slider-val">{{ answer.answer }}</div>
+                            </div>
+                        
+                        {% else %}
+                            <div class="simple-answer">{{ answer.answer|default:"No answer provided" }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function switchView(viewType) {
+    // Update tabs
+    document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById('tab-' + viewType).classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.view-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('view-' + viewType).classList.add('active');
+}
+</script>
+{% endblock %}

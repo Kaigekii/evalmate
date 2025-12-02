@@ -53,19 +53,6 @@
                 sidebar.classList.add('sidebar--collapsed');
             }
         }
-        
-        const signOutBtn = document.getElementById('signOutBtn');
-        if (signOutBtn) {
-            signOutBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                notificationManager.confirm(
-                    'Are you sure you want to sign out?',
-                    () => {
-                        window.location.href = signOutBtn.href;
-                    }
-                );
-            });
-        }
     }
     
     function initSPANavigation() {
@@ -206,6 +193,11 @@
         if (!route) return;
         
         setTimeout(() => {
+            // Always reinitialize sign-out button after navigation
+            if (typeof initSignOut === 'function') {
+                initSignOut();
+            }
+            
             if (route.name === 'overview' && typeof initFacultyDashboard === 'function') {
                 initFacultyDashboard();
             } else if (route.name === 'form-builder' && typeof initFormBuilder === 'function') {

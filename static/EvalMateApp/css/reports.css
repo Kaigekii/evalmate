@@ -641,6 +641,13 @@
     flex-shrink: 0;
     box-shadow: 0 4px 12px rgba(113, 90, 90, 0.25);
     transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.response-item__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .response-item:hover .response-item__avatar {
@@ -752,6 +759,13 @@
     font-size: 2.5rem;
     flex-shrink: 0;
     box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.response-detail-header__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .response-detail-header__content {

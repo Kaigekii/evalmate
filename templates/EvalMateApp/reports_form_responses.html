@@ -4,7 +4,7 @@
 {% block title %}Responses - {{ form.title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}">
+<link rel="stylesheet" href="{% static 'EvalMateApp/css/reports.css' %}?v=9">
 {% endblock %}
 
 {% block content %}
@@ -51,7 +51,17 @@
         {% for group in grouped_responses %}
         <div class="response-item {% if group.has_unread %}response-item--unread{% endif %}" style="display: flex; align-items: center; padding: 1.5rem; gap: 1.5rem;">
             <div class="response-item__avatar">
-                <span>{% if is_anonymous %}A{% else %}{{ group.student.first_name.0 }}{{ group.student.last_name.0 }}{% endif %}</span>
+                {% if is_anonymous %}
+                    <span>A</span>
+                {% else %}
+                    {% if group.student.profile_picture_url %}
+                        <img src="{{ group.student.profile_picture_url }}" alt="{{ group.student.first_name }}" class="response-item__avatar-img">
+                    {% elif group.student.profile_picture %}
+                        <img src="{{ group.student.profile_picture.url }}" alt="{{ group.student.first_name }}" class="response-item__avatar-img">
+                    {% else %}
+                        <span>{{ group.student.first_name.0 }}{{ group.student.last_name.0 }}</span>
+                    {% endif %}
+                {% endif %}
             </div>
             
             <div style="flex: 1; min-width: 0;">

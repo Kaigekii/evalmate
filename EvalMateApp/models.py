@@ -64,19 +64,40 @@ class FormTemplate(models.Model):
     
     @property
     def due_date(self):
-        """Extract due date from structure settings"""
+        """Extract due date and time from structure settings"""
         if self.structure and 'settings' in self.structure:
             due_date_str = self.structure['settings'].get('dueDate')
+            due_time_str = self.structure['settings'].get('dueTime')
+            
             if due_date_str:
                 try:
                     from datetime import datetime
                     from django.utils import timezone
-                    dt = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                    
+                    # Clean up the date string - remove any 'Z' or timezone info
+                    due_date_clean = due_date_str.replace('Z', '').replace('+00:00', '').split('T')[0]
+                    
+                    # Combine date and time if both exist
+                    if due_time_str and due_time_str.strip():
+                        # Parse the date (YYYY-MM-DD format)
+                        # Parse the time (HH:MM format in 24-hour)
+                        datetime_str = f"{due_date_clean}T{due_time_str}:00"
+                        dt = datetime.fromisoformat(datetime_str)
+                    else:
+                        # If no time specified, try to parse as full ISO format first
+                        if 'T' in due_date_str:
+                            dt = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                        else:
+                            # Just a date, default to midnight
+                            datetime_str = f"{due_date_clean}T00:00:00"
+                            dt = datetime.fromisoformat(datetime_str)
+                    
                     # Ensure timezone aware
                     if dt.tzinfo is None:
                         dt = timezone.make_aware(dt)
                     return dt
-                except:
+                except Exception as e:
+                    print(f"Error parsing due_date for form {self.id}: date='{due_date_str}', time='{due_time_str}', error={e}")
                     return None
         return None
     

@@ -45,7 +45,7 @@
 
             <div class="teammate-grid">
                 {% for teammate in teammates %}
-                <div class="teammate-card {% if teammate in completed_teammates %}teammate-card--completed{% elif forloop.counter0 == current_index %}teammate-card--current{% else %}teammate-card--pending{% endif %}" 
+                <div class="teammate-card {% if teammate in completed_teammates %}teammate-card--completed{% elif forloop.counter0 == current_index %}teammate-card--current{% else %}teammate-card--pending{% endif %} {% if allow_self_evaluation and forloop.first %}teammate-card--self{% endif %}" 
                      data-teammate-index="{{ forloop.counter0 }}"
                      {% if teammate in completed_teammates %}onclick="navigateToTeammate({{ forloop.counter0 }})" style="cursor: pointer;"{% endif %}>
                     <div class="teammate-card__avatar">
@@ -55,7 +55,14 @@
                             {{ teammate.0 }}
                         {% endif %}
                     </div>
-                    <h4 class="teammate-card__name">{{ teammate }}</h4>
+                    <h4 class="teammate-card__name">
+                        {{ teammate }}
+                        {% if allow_self_evaluation and forloop.first %}
+                            <span class="self-eval-badge" style="display: inline-block; margin-left: 8px; background: #37353E; color: white; padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 500; letter-spacing: 0.3px;">
+                                <i class="fas fa-user-check" style="font-size: 9px; margin-right: 3px;"></i>YOU
+                            </span>
+                        {% endif %}
+                    </h4>
                     <span class="teammate-card__status {% if teammate in completed_teammates %}teammate-card__status--completed{% elif forloop.counter0 == current_index %}teammate-card__status--current{% else %}teammate-card__status--pending{% endif %}">
                         {% if teammate in completed_teammates %}
                             Completed ✓
@@ -216,17 +223,10 @@
 
                 <!-- Actions -->
                 <div class="form-actions">
-                    <div class="btn-group">
-                        <a href="{% url 'student_eval_team_setup' form.id %}?force_edit=1" class="btn btn-back" onclick="return confirm('Edit team setup? Your evaluation progress will be saved.');">
-                            <i class="fas fa-edit"></i>
-                            Edit Team Setup
-                        </a>
-                        
-                        <button type="button" class="btn btn-secondary" id="saveDraftBtn" onclick="saveDraft()">
-                            <i class="fas fa-save"></i>
-                            Save Draft
-                        </button>
-                    </div>
+                    <a href="#" class="btn btn-back" id="editTeamSetupBtn">
+                        <i class="fas fa-edit"></i>
+                        Edit Team Setup
+                    </a>
                     
                     <button type="submit" class="btn btn-primary">
                         {% if completed_count >= total_teammates %}
@@ -241,8 +241,6 @@
                         {% endif %}
                     </button>
                 </div>
-                
-                <div id="draftStatus" style="text-align: center; margin-top: 10px; color: #666; font-size: 14px;"></div>
             </div>
         </form>
     </div>
@@ -297,12 +295,6 @@
             }
         });
         
-        // ==================== Draft Functionality ====================
-        
-        const formId = {{ form.id }};
-        const teamIdentifier = '{{ team_identifier }}';
-        const currentTeammate = '{{ current_teammate }}';
-        
         // Get CSRF token
         function getCookie(name) {
             let cookieValue = null;
@@ -318,112 +310,6 @@
             }
             return cookieValue;
         }
-        
-        // Collect form data
-        function collectFormData() {
-            const formData = {};
-            const form = document.getElementById('evaluationForm');
-            const formElements = form.querySelectorAll('input, textarea, select');
-            
-            formElements.forEach(element => {
-                if (element.name && element.name.startsWith('question_')) {
-                    if (element.type === 'radio' || element.type === 'checkbox') {
-                        if (element.checked) {
-                            if (element.type === 'checkbox') {
-                                if (!formData[element.name]) {
-                                    formData[element.name] = [];
-                                }
-                                formData[element.name].push(element.value);
-                            } else {
-                                formData[element.name] = element.value;
-                            }
-                        }
-                    } else {
-                        formData[element.name] = element.value;
-                    }
-                }
-            });
-            
-            return formData;
-        }
-        
-        // Load draft data
-        function loadFormData(draftData) {
-            const form = document.getElementById('evaluationForm');
-            
-            Object.keys(draftData).forEach(fieldName => {
-                const value = draftData[fieldName];
-                const elements = form.querySelectorAll(`[name="${fieldName}"]`);
-                
-                elements.forEach(element => {
-                    if (element.type === 'radio') {
-                        if (element.value === value) {
-                            element.checked = true;
-                        }
-                    } else if (element.type === 'checkbox') {
-                        if (Array.isArray(value) && value.includes(element.value)) {
-                            element.checked = true;
-                        }
-                    } else {
-                        element.value = value;
-                    }
-                });
-            });
-        }
-        
-        // Save draft to server
-        async function saveDraft() {
-            const draftData = collectFormData();
-            const statusEl = document.getElementById('draftStatus');
-            const saveDraftBtn = document.getElementById('saveDraftBtn');
-            
-            try {
-                saveDraftBtn.disabled = true;
-                statusEl.textContent = 'Saving draft...';
-                statusEl.style.color = '#666';
-                
-                const response = await fetch('/api/student/draft/save/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken'),
-                    },
-                    body: JSON.stringify({
-                        form_id: formId,
-                        draft_data: draftData,
-                        team_identifier: teamIdentifier,
-                        teammate_name: currentTeammate
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    statusEl.textContent = '✓ Draft saved successfully. Redirecting...';
-                    statusEl.style.color = '#1E8449';
-                    
-                    // Mark as saved
-                    window.draftSaved = true;
-                    
-                    // Redirect to student dashboard after 1 second
-                    setTimeout(() => {
-                        window.location.href = '/dashboard/student/#pending';
-                    }, 1000);
-                } else {
-                    throw new Error(result.error || 'Failed to save draft');
-                }
-            } catch (error) {
-                console.error('Error saving draft:', error);
-                statusEl.textContent = '✗ Failed to save draft';
-                statusEl.style.color = '#dc3545';
-            } finally {
-                saveDraftBtn.disabled = false;
-            }
-        }
-        
-        // AUTO-SAVE REMOVED - Use manual "Save Draft" button only
-        
-        // Unsaved changes tracking removed - users can save manually with "Save Draft" button
         
         // Navigate to a specific teammate (for editing)
         function navigateToTeammate(index) {
@@ -465,15 +351,19 @@
                         }
                     });
                 }
-                
-                // Show notification that we're editing
-                const statusEl = document.getElementById('draftStatus');
-                if (statusEl) {
-                    statusEl.textContent = 'Editing saved evaluation for {{ current_teammate }}';
-                    statusEl.style.color = '#2563eb';
-                }
             }
         }
+        
+        // Handle Edit Team Setup button
+        document.getElementById('editTeamSetupBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            showConfirm(
+                'Edit team setup? Your evaluation progress will be saved.',
+                () => {
+                    window.location.href = '{% url "student_eval_team_setup" form.id %}?force_edit=1';
+                }
+            );
+        });
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {

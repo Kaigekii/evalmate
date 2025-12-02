@@ -96,7 +96,7 @@ DATABASES = {
         default=DATABASE_URL,
         conn_max_age=0,  # Don't persist connections (important for pooling)
         conn_health_checks=True,
-        ssl_require=False,
+        ssl_require=True,
     )
 }
 

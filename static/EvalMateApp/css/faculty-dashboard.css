@@ -15,7 +15,7 @@
     --color-text-primary: #37353E;
     --color-text-secondary: #44444E;
     --color-text-light: #37353E;
-    --color-background: #F8F9FA;
+    --color-background: #F5F5F5;
     --color-white: #FFFFFF;
     --color-border: #D3DAD9;
     --color-hover: #F5F6F7;
@@ -44,8 +44,8 @@
     
     /* Transitions */
     --transition-fast: 0.15s ease;
-    --transition-base: 0.3s ease;
-    --transition-slow: 0.5s ease;
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
     
     /* Typography */
     --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -76,6 +76,20 @@ body {
     color: var(--color-text-primary);
     line-height: 1.6;
     overflow: hidden;
+}
+
+/* Fast page load animation */
+.main-content {
+    animation: fadeInPage 0.12s ease-out;
+}
+
+@keyframes fadeInPage {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 html {
@@ -122,35 +136,31 @@ html {
 
 /* Sidebar Header */
 .sidebar__header {
-    padding: var(--spacing-md);
+    padding: 0 var(--spacing-md);
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--color-border);
-    min-height: var(--topnav-height);
+    height: var(--topnav-height);
 }
 
 .sidebar__logo {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    cursor: pointer;
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    transition: background-color var(--transition-fast);
-    position: relative;
-}
-
-.sidebar__logo:hover {
-    background-color: var(--color-hover);
 }
 
 .logo__square {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     background-color: var(--color-primary);
     border-radius: var(--radius-sm);
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white);
+    font-weight: 600;
+    font-size: 0.875rem;
 }
 
 .logo__text {
@@ -294,12 +304,18 @@ html {
     margin-left: var(--sidebar-width-collapsed);
 }
 
+.content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 /* ==========================================================================
    Top Navigation Bar
    ========================================================================== */
 
 .topnav {
-    background-color: var(--color-white);
+    background: var(--color-white);
     height: var(--topnav-height);
     display: flex;
     align-items: center;
@@ -309,6 +325,7 @@ html {
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .topnav__left {
@@ -379,25 +396,27 @@ html {
    ========================================================================== */
 
 .content {
-    padding: var(--spacing-xl);
-    max-width: 1400px;
+    padding: 48px;
     width: 100%;
-    margin: 0 auto;
+    box-sizing: border-box;
 }
 
-/* Hero Section - Reports Style */
-.reports-hero {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+/* Hero Section - Reports Style - STANDARDIZED */
+.reports-hero,
+.form-builder__hero {
+    background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%);
+    border-radius: 16px;
+    padding: 48px;
+    margin-bottom: 48px;
     color: var(--color-white);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     position: relative;
     overflow: hidden;
+    height: 184px;
+    box-sizing: border-box;
 }
 
 .reports-hero::before {
@@ -415,35 +434,45 @@ html {
 .reports-hero__content {
     display: flex;
     align-items: center;
-    gap: var(--spacing-lg);
+    gap: 24px;
     z-index: 1;
+    height: 100%;
 }
 
 .reports-hero__icon {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     background: rgba(255, 255, 255, 0.15);
-    border-radius: var(--radius-lg);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: 32px;
+    flex-shrink: 0;
     backdrop-filter: blur(10px);
-    animation: pulse 2s ease-in-out infinite;
+}
+
+.reports-hero__text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .reports-hero__title {
-    font-size: 2.5rem;
+    font-size: 36px;
     font-weight: 700;
-    margin: 0 0 var(--spacing-xs) 0;
+    margin: 0 0 8px 0;
     font-family: 'Poppins', sans-serif;
+    line-height: 1.2;
 }
 
 .reports-hero__subtitle {
-    font-size: 1.125rem;
+    font-size: 17px;
     opacity: 0.9;
     margin: 0;
     font-weight: 400;
+    line-height: 1.5;
 }
 
 .reports-hero__stats {
@@ -667,6 +696,7 @@ html {
    ========================================================================== */
 
 .recent-activities {
+    margin-top: var(--spacing-xl);
     margin-bottom: var(--spacing-xl);
 }
 
@@ -696,6 +726,7 @@ html {
     border: 1px solid var(--color-border);
     padding: var(--spacing-lg);
     min-height: 200px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 /* Empty State */
@@ -931,6 +962,16 @@ html {
     background: linear-gradient(135deg, #37353E 0%, #44444E 100%);
 }
 
+.stat-card--unpublished {
+    background: linear-gradient(135deg, #5A5A5A 0%, #6E6E6E 100%);
+    border-color: #6E6E6E;
+}
+
+.stat-card--unpublished:hover {
+    background: linear-gradient(135deg, #6E6E6E 0%, #7F7F7F 100%);
+}
+
+/* Legacy support for old 'draft' class */
 .stat-card--draft {
     background: linear-gradient(135deg, #5A5A5A 0%, #6E6E6E 100%);
     border-color: #6E6E6E;
@@ -968,18 +1009,30 @@ html {
     font-size: var(--font-size-sm);
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all 0.2s ease;
     position: relative;
     bottom: -2px;
+    outline: none;
 }
 
 .forms-tab:hover {
     color: var(--color-primary);
+    background-color: rgba(55, 53, 62, 0.03);
+    border-radius: 8px 8px 0 0;
+}
+
+.forms-tab:focus {
+    outline: 2px solid rgba(55, 53, 62, 0.2);
+    outline-offset: 2px;
 }
 
 .forms-tab--active {
     color: var(--color-primary);
     border-bottom-color: var(--color-primary);
+}
+
+.forms-tab--active:hover {
+    background-color: rgba(55, 53, 62, 0.05);
 }
 
 /* Forms List */
@@ -993,13 +1046,13 @@ html {
     background-color: var(--color-white);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
     transition: all var(--transition-fast);
 }
 
 .form-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
 }
 
 .form-card__header {
@@ -1037,6 +1090,13 @@ html {
     border: none;
 }
 
+.form-card__badge--unpublished {
+    background: #FEF3C7;
+    color: #92400E;
+    border: none;
+}
+
+/* Legacy support for old 'draft' class */
 .form-card__badge--draft {
     background: #FEF3C7;
     color: #92400E;
@@ -1045,51 +1105,95 @@ html {
 
 .form-card__actions {
     display: flex;
-    gap: var(--spacing-xs);
+    gap: 0.6rem;
+    align-items: center;
 }
 
+/* Enhanced action button styles */
 .btn-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--color-background);
-    border: none;
-    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 2px solid rgba(20,20,20,0.06);
+    border-radius: 14px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--color-text-secondary);
+    box-shadow: 0 4px 8px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+    font-size: 1.05rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+}
+
+.btn-icon:hover::before {
+    opacity: 1;
+}
+
+.btn-icon i {
+    pointer-events: none;
+    font-size: 1.15rem;
+    position: relative;
+    z-index: 1;
+    transition: color 0.3s ease;
 }
 
 .btn-icon:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(55, 53, 62, 0.25), 0 4px 8px rgba(55, 53, 62, 0.15);
+    border-color: rgba(55, 53, 62, 0.3);
 }
 
-.btn-icon--publish:hover {
-    background-color: #D1FAE5;
-    color: #065F46;
+.btn-icon:hover i {
+    color: #ffffff;
 }
 
-.btn-icon--unpublish:hover {
-    background-color: #FEF3C7;
-    color: #92400E;
+.btn-icon:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(55, 53, 62, 0.2);
 }
 
-.btn-icon--edit:hover {
-    background-color: #DBEAFE;
-    color: #1E40AF;
+/* Accessible focus state */
+.btn-icon:focus {
+    outline: 3px solid rgba(55, 53, 62, 0.3);
+    outline-offset: 3px;
 }
 
-.btn-icon--duplicate:hover {
-    background-color: #FEF3C7;
-    color: #92400E;
+/* Variants - Match Branding Colors */
+.btn-icon--publish {
+    background: linear-gradient(135deg, #E8E7EA 0%, #D8D6DB 100%);
+    color: var(--color-primary);
+    border-color: rgba(55, 53, 62, 0.15);
 }
 
-.btn-icon--delete:hover {
-    background-color: #FEE2E2;
-    color: #991B1B;
+.btn-icon--unpublish {
+    background: linear-gradient(135deg, #ECEBED 0%, #DDDCE0 100%);
+    color: var(--color-secondary);
+    border-color: rgba(68, 68, 78, 0.15);
+}
+
+.btn-icon--edit {
+    background: linear-gradient(135deg, #E8E7EA 0%, #D8D6DB 100%);
+    color: var(--color-primary);
+    border-color: rgba(55, 53, 62, 0.15);
+}
+
+.btn-icon--delete {
+    background: linear-gradient(135deg, #F5F4F6 0%, #E7E6EA 100%);
+    color: var(--color-secondary);
+    border-color: rgba(68, 68, 78, 0.15);
 }
 
 .form-card__description {

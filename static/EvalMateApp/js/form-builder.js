@@ -2,7 +2,7 @@
 class FormBuilder {
     constructor() {
         this.formData = {
-            id: Date.now(),
+            id: null,  // Will be set when loading existing form or creating new
             title: '',
             description: '',
             sections: [],
@@ -15,7 +15,6 @@ class FormBuilder {
                 requirePasscode: false,
                 passcode: '',
                 anonymousEvaluations: true,
-                allowDraftSaving: true,
                 minTeamSize: 2,
                 maxTeamSize: 5,
                 studentInstructions: 'Form your team and evaluate each teammate based on the criteria below.',
@@ -25,10 +24,13 @@ class FormBuilder {
         
         this.activeSection = null;
         this.activeQuestion = null;
+        this.editMode = false;  // Track if editing existing form
+        this.hasUnsavedChanges = false;  // Track unsaved changes
         
         this.initializeElements();
+        this.checkForEditMode();  // Check if editing existing form
         this.initializeEventListeners();
-        this.loadFormData();
+        this.setupNavigationWarning();  // Setup beforeunload warning
     }
 
     initializeElements() {
@@ -58,13 +60,13 @@ class FormBuilder {
         this.formTitle.addEventListener('input', (e) => {
             this.formData.title = e.target.value;
             this.autoResizeTextarea(e.target);
-            this.saveDraft();
+            this.markFormAsChanged();
         });
 
         this.formDescription.addEventListener('input', (e) => {
             this.formData.description = e.target.value;
             this.autoResizeTextarea(e.target);
-            this.saveDraft();
+            this.markFormAsChanged();
         });
 
         // Add section button - prevent double-click
@@ -90,8 +92,7 @@ class FormBuilder {
             }
         });
 
-        // Save and publish buttons
-        document.getElementById('saveDraft').addEventListener('click', () => this.saveDraft());
+        // Publish button
         document.getElementById('publishForm').addEventListener('click', () => this.publishForm());
 
         // Settings event listeners
@@ -114,7 +115,7 @@ class FormBuilder {
         this.formData.sections.push(section);
         this.renderSection(section);
         this.showSectionEditor(section);
-        this.saveDraft();
+        this.markFormAsChanged();
     }
 
     renderSection(section) {
@@ -165,7 +166,7 @@ class FormBuilder {
             this.formData.sections.splice(index, 1);
             document.querySelector(`[data-section-id="${sectionId}"]`).remove();
             this.showDefaultEditor();
-            this.saveDraft();
+            this.markFormAsChanged();
         }
     }
 
@@ -208,7 +209,7 @@ class FormBuilder {
             this.renderQuestions(section);
             
             this.showDefaultEditor();
-            this.saveDraft();
+            this.markFormAsChanged();
         }
     }
 
@@ -237,7 +238,7 @@ class FormBuilder {
         section.questions.push(question);
         this.renderQuestion(section, question);
         this.showQuestionEditor(question);
-        this.saveDraft();
+        this.markFormAsChanged();
     }
 
     getDefaultOptionsForType(type) {
@@ -391,7 +392,6 @@ class FormBuilder {
         document.getElementById('sectionTitle').oninput = (e) => {
             section.title = e.target.value;
             document.querySelector(`[data-section-id="${section.id}"] .section__title`).textContent = e.target.value;
-            this.saveDraft();
         };
 
         document.getElementById('sectionDescription').oninput = (e) => {
@@ -411,7 +411,6 @@ class FormBuilder {
             } else if (descEl) {
                 descEl.remove();
             }
-            this.saveDraft();
         };
     }
 
@@ -446,7 +445,6 @@ class FormBuilder {
             const questionEl = document.querySelector(`[data-question-id="${question.id}"]`);
             questionEl.querySelector('.question__min-title').textContent = `Q${this.getQuestionNumber(question)}: ${e.target.value}`;
             questionEl.querySelector('.question__title').textContent = e.target.value;
-            this.saveDraft();
         };
 
         questionDescription.oninput = (e) => {
@@ -466,7 +464,6 @@ class FormBuilder {
             } else if (descEl) {
                 descEl.remove();
             }
-            this.saveDraft();
         };
 
         requiredCheckbox.onchange = (e) => {
@@ -483,7 +480,6 @@ class FormBuilder {
             } else if (!e.target.checked && badge) {
                 badge.remove();
             }
-            this.saveDraft();
         };
 
         // Setup type-specific options
@@ -539,14 +535,14 @@ class FormBuilder {
             scaleLabels.value = question.options.labels.join(', ');
             this.validateLabels(question, scaleLabels, labelError);
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         scaleLabels.oninput = (e) => {
             question.options.labels = e.target.value.split(',').map(label => label.trim()).filter(label => label);
             this.validateLabels(question, scaleLabels, labelError);
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         this.validateLabels(question, scaleLabels, labelError);
@@ -577,13 +573,13 @@ class FormBuilder {
         characterLimit.oninput = (e) => {
             question.options.characterLimit = parseInt(e.target.value);
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         placeholder.oninput = (e) => {
             question.options.placeholder = e.target.value;
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
     }
 
@@ -605,7 +601,7 @@ class FormBuilder {
             question.options.options.push('New Option');
             this.addOptionInput(optionsList, 'New Option', question.options.options.length - 1, question);
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
     }
 
@@ -625,14 +621,14 @@ class FormBuilder {
         input.oninput = (e) => {
             question.options.options[index] = e.target.value;
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         removeBtn.onclick = () => {
             question.options.options.splice(index, 1);
             optionDiv.remove();
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         container.appendChild(optionDiv);
@@ -656,7 +652,7 @@ class FormBuilder {
             question.options.step = parseInt(sliderStep.value);
             question.options.labels = sliderLabels.value.split(',').map(label => label.trim());
             this.updateQuestionPreview(question);
-            this.saveDraft();
+
         };
 
         sliderMin.oninput = updateSlider;
@@ -721,7 +717,7 @@ class FormBuilder {
             courseIdInput.value = this.formData.settings.courseId;
             courseIdInput.addEventListener('input', (e) => {
                 this.formData.settings.courseId = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -731,7 +727,7 @@ class FormBuilder {
             courseDescInput.value = this.formData.settings.courseDescription;
             courseDescInput.addEventListener('input', (e) => {
                 this.formData.settings.courseDescription = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -741,7 +737,7 @@ class FormBuilder {
             dueDateInput.value = this.formData.settings.dueDate;
             dueDateInput.addEventListener('change', (e) => {
                 this.formData.settings.dueDate = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -751,7 +747,7 @@ class FormBuilder {
             dueTimeInput.value = this.formData.settings.dueTime;
             dueTimeInput.addEventListener('change', (e) => {
                 this.formData.settings.dueTime = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -761,7 +757,7 @@ class FormBuilder {
             accessibilitySelect.value = this.formData.settings.accessibility;
             accessibilitySelect.addEventListener('change', (e) => {
                 this.formData.settings.accessibility = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -773,7 +769,7 @@ class FormBuilder {
             requirePasscodeCheckbox.addEventListener('change', (e) => {
                 this.formData.settings.requirePasscode = e.target.checked;
                 passcodeInputRow.style.display = e.target.checked ? 'block' : 'none';
-                this.saveDraft();
+
             });
             // Set initial visibility
             passcodeInputRow.style.display = this.formData.settings.requirePasscode ? 'block' : 'none';
@@ -794,7 +790,7 @@ class FormBuilder {
                 }
                 e.target.value = value;
                 this.formData.settings.passcode = value;
-                this.saveDraft();
+
             });
             
             // Validate on blur
@@ -813,17 +809,7 @@ class FormBuilder {
             anonymousCheckbox.checked = this.formData.settings.anonymousEvaluations;
             anonymousCheckbox.addEventListener('change', (e) => {
                 this.formData.settings.anonymousEvaluations = e.target.checked;
-                this.saveDraft();
-            });
-        }
 
-        // Allow Draft Saving
-        const draftSavingCheckbox = document.getElementById('allowDraftSaving');
-        if (draftSavingCheckbox) {
-            draftSavingCheckbox.checked = this.formData.settings.allowDraftSaving;
-            draftSavingCheckbox.addEventListener('change', (e) => {
-                this.formData.settings.allowDraftSaving = e.target.checked;
-                this.saveDraft();
             });
         }
 
@@ -834,7 +820,7 @@ class FormBuilder {
             minTeamSizeSelect.addEventListener('change', (e) => {
                 this.formData.settings.minTeamSize = parseInt(e.target.value);
                 this.validateTeamSizes();
-                this.saveDraft();
+
             });
         }
 
@@ -845,7 +831,7 @@ class FormBuilder {
             maxTeamSizeSelect.addEventListener('change', (e) => {
                 this.formData.settings.maxTeamSize = parseInt(e.target.value);
                 this.validateTeamSizes();
-                this.saveDraft();
+
             });
         }
 
@@ -855,7 +841,7 @@ class FormBuilder {
             studentInstructionsTextarea.value = this.formData.settings.studentInstructions;
             studentInstructionsTextarea.addEventListener('input', (e) => {
                 this.formData.settings.studentInstructions = e.target.value;
-                this.saveDraft();
+
             });
         }
 
@@ -865,7 +851,7 @@ class FormBuilder {
             selfEvaluationCheckbox.checked = this.formData.settings.allowSelfEvaluation;
             selfEvaluationCheckbox.addEventListener('change', (e) => {
                 this.formData.settings.allowSelfEvaluation = e.target.checked;
-                this.saveDraft();
+
             });
         }
     }
@@ -881,29 +867,65 @@ class FormBuilder {
         }
     }
 
-    saveDraft() {
-        // Save to localStorage
-        localStorage.setItem(`form_draft_${this.formData.id}`, JSON.stringify(this.formData));
+    checkForEditMode() {
+        // Check if editing existing form via URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const editFormId = urlParams.get('edit');
+        
+        if (editFormId) {
+            this.editMode = true;
+            this.formData.id = parseInt(editFormId);
+            this.loadFormFromServer(editFormId);
+        }
     }
 
-    loadFormData() {
-        const savedData = localStorage.getItem(`form_draft_${this.formData.id}`);
-        if (savedData) {
-            this.formData = JSON.parse(savedData);
-            this.formTitle.value = this.formData.title;
-            this.formDescription.value = this.formData.description;
-            this.formData.sections.forEach(section => this.renderSection(section));
-            
-            // Load settings into form fields
-            if (this.formData.settings) {
-                this.initializeSettingsListeners(); // Re-initialize to populate values
+    async loadFormFromServer(formId) {
+        try {
+            const response = await fetch(`/api/forms/${formId}/load/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.form) {
+                    this.formData = data.form;
+                    this.formTitle.value = this.formData.title || '';
+                    this.formDescription.value = this.formData.description || '';
+                    
+                    // Clear existing sections
+                    this.formSections.innerHTML = '';
+                    
+                    // Load sections
+                    if (this.formData.sections) {
+                        this.formData.sections.forEach(section => this.renderSection(section));
+                    }
+                    
+                    // Load settings
+                    if (this.formData.settings) {
+                        this.initializeSettingsListeners();
+                    }
+                    
+                    console.log('Form loaded successfully:', this.formData);
+                }
+            } else {
+                throw new Error('Failed to load form');
             }
+        } catch (error) {
+            console.error('Error loading form:', error);
+            alert('❌ Failed to load form for editing. Please try again.');
         }
     }
 
     async publishForm() {
+        // Update form data from UI
+        this.formData.title = this.formTitle.value.trim();
+        this.formData.description = this.formDescription.value.trim();
+
         // Validate form before publishing
-        if (!this.formData.title || this.formData.title.trim() === '') {
+        if (!this.formData.title) {
             alert('Please add a form title before publishing.');
             return;
         }
@@ -922,7 +944,6 @@ class FormBuilder {
 
         try {
             console.log('Publishing form with data:', this.formData);
-            console.log('CSRF Token:', this.getCsrfToken());
             
             const response = await fetch('/api/publish-form', {
                 method: 'POST',
@@ -933,36 +954,33 @@ class FormBuilder {
                 body: JSON.stringify(this.formData)
             });
 
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
+            const data = await response.json();
 
-            // Try to parse the response
-            const responseText = await response.text();
-            console.log('Response body:', responseText);
-
-            if (response.ok) {
-                const data = JSON.parse(responseText);
-                localStorage.removeItem(`form_draft_${this.formData.id}`);
+            if (response.ok && data.success) {
+                // Mark as saved to prevent warning
+                this.markFormAsSaved();
                 
                 // Show success message
-                alert('✅ Form published successfully! Redirecting to Reports...');
-                
-                // Redirect to reports page
-                window.location.href = '/dashboard/faculty/reports/';
-            } else {
-                let errorMessage = 'Failed to publish form';
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.error || errorMessage;
-                } catch (e) {
-                    errorMessage = responseText || errorMessage;
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Form published successfully! Redirecting...', 'success');
+                } else {
+                    alert('✅ Form published successfully! Redirecting to Overview...');
                 }
-                throw new Error(errorMessage);
+                
+                // Redirect to overview page
+                setTimeout(() => {
+                    window.location.href = '/dashboard/faculty/';
+                }, 1500);
+            } else {
+                throw new Error(data.error || 'Failed to publish form');
             }
         } catch (error) {
             console.error('Error publishing form:', error);
-            console.error('Full error details:', error);
-            alert('❌ Failed to publish form. Please try again.\n\nError: ' + error.message);
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.show('Failed to publish form. Please try again.', 'error');
+            } else {
+                alert('❌ Failed to publish form. Please try again.\n\nError: ' + error.message);
+            }
         }
     }
 
@@ -1216,6 +1234,66 @@ class FormBuilder {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    /**
+     * Track if form has unsaved changes
+     */
+    markFormAsChanged() {
+        this.hasUnsavedChanges = true;
+    }
+    
+    markFormAsSaved() {
+        this.hasUnsavedChanges = false;
+    }
+    
+    /**
+     * Setup beforeunload warning for unsaved changes
+     */
+    setupNavigationWarning() {
+        // Warn on browser navigation/refresh
+        window.addEventListener('beforeunload', (e) => {
+            if (this.hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave? All progress will be lost.';
+                return e.returnValue;
+            }
+        });
+        
+        // Warn on SPA navigation (clicking sidebar links)
+        const spaLinks = document.querySelectorAll('[data-spa-link], .sidebar__link:not(.sidebar__link--signout)');
+        spaLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (this.hasUnsavedChanges) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Use notification manager for confirmation
+                    if (typeof notificationManager !== 'undefined') {
+                        notificationManager.confirm(
+                            'You have unsaved changes. Are you sure you want to leave? All progress will be lost.',
+                            () => {
+                                // User confirmed - allow navigation
+                                this.markFormAsSaved();
+                                link.click();
+                            },
+                            () => {
+                                // User cancelled - do nothing
+                                console.log('Navigation cancelled by user');
+                            }
+                        );
+                    } else {
+                        // Fallback to browser confirm
+                        const confirmLeave = confirm('You have unsaved changes. Are you sure you want to leave? All progress will be lost.');
+                        if (confirmLeave) {
+                            this.markFormAsSaved();
+                            link.click();
+                        }
+                    }
+                    return false;
+                }
+            });
+        });
+    }
 }
 
 // Initialize Form Builder
@@ -1227,12 +1305,7 @@ function initFormBuilder() {
     window.formBuilder = new FormBuilder();
 }
 
-// Auto-initialize on DOMContentLoaded
-document.addEventListener('DOMContentLoaded', () => {
-    initFormBuilder();
-});
-
-// Also initialize immediately if DOM is already ready (for SPA navigation)
+// Auto-initialize on DOMContentLoaded or immediately if already loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initFormBuilder);
 } else {

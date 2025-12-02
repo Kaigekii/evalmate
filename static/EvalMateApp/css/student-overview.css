@@ -2203,6 +2203,16 @@ input[type="number"].form-input {
     background: linear-gradient(135deg, #fffbf0 0%, #ffffff 100%);
 }
 
+.evaluation-card--expired {
+    border-left: 4px solid #95a5a6;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    opacity: 0.7;
+}
+
+.evaluation-card--expired .evaluation-card__title {
+    color: #7f8c8d;
+}
+
 .evaluation-card__header {
     margin-bottom: 1rem;
 }

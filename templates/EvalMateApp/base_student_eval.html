@@ -16,6 +16,7 @@
     
     <!-- Student Evaluation CSS -->
     <link rel="stylesheet" href="{% static 'EvalMateApp/css/student-overview.css' %}">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/notifications.css' %}">
     
     <!-- Page-specific CSS -->
     {% block extra_css %}{% endblock %}
@@ -43,6 +44,9 @@
         {% block content %}{% endblock %}
     </main>
     
+    <!-- Global Notification System -->
+    <script src="{% static 'EvalMateApp/js/notifications.js' %}"></script>
+    
     <!-- Global script for back button -->
     <script>
         function confirmLeave(event) {
@@ -50,11 +54,14 @@
             if (typeof window.draftSaved !== 'undefined' && !window.draftSaved) {
                 event.preventDefault();
                 
-                const confirmed = confirm('⚠️ You have unsaved changes!\n\nPlease save your progress as a draft before leaving to avoid losing your work.\n\nClick "Save Draft" button to save, or click Cancel to continue editing.');
+                notificationManager.confirm(
+                    '⚠️ You have unsaved changes! Please save your progress as a draft before leaving to avoid losing your work.',
+                    () => {
+                        window.location.href = '{% url "student_dashboard" %}#pending';
+                    }
+                );
                 
-                if (!confirmed) {
-                    return false;
-                }
+                return false;
             }
             
             // Allow navigation if no unsaved changes

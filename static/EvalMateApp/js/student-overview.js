@@ -425,10 +425,16 @@ function createEvaluationCard(evaluation) {
     const card = document.createElement('div');
     card.className = 'evaluation-card';
     
+    // Check if expired
+    const isExpired = evaluation.is_expired || false;
+    
     // Determine urgency badge
     let urgencyBadge = '';
     let urgencyClass = '';
-    if (evaluation.days_left !== null) {
+    if (isExpired) {
+        urgencyBadge = '<span class="badge badge--danger">EXPIRED</span>';
+        urgencyClass = 'evaluation-card--expired';
+    } else if (evaluation.days_left !== null) {
         if (evaluation.days_left === 0) {
             urgencyBadge = '<span class="badge badge--danger">Due Today</span>';
             urgencyClass = 'evaluation-card--urgent';
@@ -451,13 +457,21 @@ function createEvaluationCard(evaluation) {
     const teamSizeText = `${teamSettings.min_team_size || 'N/A'} - ${teamSettings.max_team_size || 'N/A'} members`;
     const selfEvalText = teamSettings.allow_self_evaluation ? 'Self-eval enabled' : 'Self-eval disabled';
     
-    // Button text based on draft status
-    const buttonText = evaluation.has_draft ? 'Continue Evaluation' : 'Answer Evaluation';
-    const buttonIcon = evaluation.has_draft ? 'fa-play-circle' : 'fa-play';
+    // Button text based on draft status and expiration
+    let buttonText, buttonIcon, buttonDisabled;
+    if (isExpired) {
+        buttonText = 'Form Closed';
+        buttonIcon = 'fa-lock';
+        buttonDisabled = true;
+    } else {
+        buttonText = evaluation.has_draft ? 'Continue Evaluation' : 'Answer Evaluation';
+        buttonIcon = evaluation.has_draft ? 'fa-play-circle' : 'fa-play';
+        buttonDisabled = false;
+    }
     
     // Add status badge for in-progress
     let statusBadge = '';
-    if (evaluation.has_draft) {
+    if (evaluation.has_draft && !isExpired) {
         statusBadge = '<span class="badge badge--success" style="margin-left: 10px;"><i class="fas fa-pencil-alt"></i> Draft Saved</span>';
     }
     
@@ -480,7 +494,7 @@ function createEvaluationCard(evaluation) {
             <p class="evaluation-card__description">${escapeHtml(truncatedDesc)}</p>
         </div>
         <div class="evaluation-card__footer">
-            <button class="btn btn--primary" onclick="startEvaluation(${evaluation.form_id})">
+            <button class="btn btn--primary" onclick="startEvaluation(${evaluation.form_id})" ${buttonDisabled ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
                 <i class="fas ${buttonIcon}"></i> ${buttonText}
             </button>
             <button class="btn btn--secondary btn--icon" onclick="removePendingEvaluation(${evaluation.id}, '${escapeHtml(evaluation.title)}')">
@@ -502,29 +516,32 @@ async function startEvaluation(formId) {
 }
 
 async function removePendingEvaluation(pendingId, title) {
-    if (!confirm(`Remove "${title}" from your pending evaluations?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+    notificationManager.confirm(
+        `Remove "${title}" from your pending evaluations?`,
+        async () => {
+            try {
+                const response = await fetch(`/api/student/pending-evaluations/${pendingId}/remove/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to remove evaluation');
+                }
+                
+                notificationManager.show('Evaluation removed successfully!', 'success');
+                
+                // Reload pending evaluations
+                fetchPendingEvaluations();
+                loadStats(); // Update overview stats
+            } catch (error) {
+                console.error('Error removing evaluation:', error);
+                notificationManager.show('Failed to remove evaluation. Please try again.', 'error');
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to remove evaluation');
         }
-        
-        // Reload pending evaluations
-        fetchPendingEvaluations();
-        loadStats(); // Update overview stats
-    } catch (error) {
-        console.error('Error removing evaluation:', error);
-        alert('Failed to remove evaluation. Please try again.');
-    }
+    );
 }
 
 function getCookie(name) {

@@ -149,7 +149,12 @@
                                     class="form-textarea"
                                     placeholder="Enter your response here..."
                                     {% if question.required %}required{% endif %}
+                                    {% if question.options.characterLimit %}maxlength="{{ question.options.characterLimit }}"{% endif %}
+                                    oninput="updateCharacterCount(this, {{ question.options.characterLimit|default:500 }})"
                                 ></textarea>
+                                <div class="character-counter" style="text-align: right; font-size: 0.875rem; color: #666; margin-top: 0.25rem;">
+                                    0 / {{ question.options.characterLimit|default:500 }} characters
+                                </div>
                             
                             {% elif question.type == 'multiple' %}
                                 <div class="multiple-choice">
@@ -243,6 +248,24 @@
     </div>
 
     <script>
+        // Character counter for text inputs
+        function updateCharacterCount(textarea, maxLength) {
+            const counterDiv = textarea.nextElementSibling;
+            const currentLength = textarea.value.length;
+            if (counterDiv && counterDiv.classList.contains('character-counter')) {
+                counterDiv.textContent = `${currentLength} / ${maxLength} characters`;
+                
+                // Change color when approaching limit
+                if (currentLength >= maxLength * 0.9) {
+                    counterDiv.style.color = '#dc3545'; // Red
+                } else if (currentLength >= maxLength * 0.7) {
+                    counterDiv.style.color = '#f59e0b'; // Orange
+                } else {
+                    counterDiv.style.color = '#666'; // Gray
+                }
+            }
+        }
+        
         // Debug: Log sections data
         console.log('Sections data:', {{ sections_json|safe }});
         console.log('Total teammates:', {{ total_teammates }});
@@ -432,6 +455,11 @@
                             }
                         } else if (input.type === 'textarea' || input.tagName === 'TEXTAREA') {
                             input.value = answer;
+                            // Update character counter if it exists
+                            const maxLength = input.getAttribute('maxlength');
+                            if (maxLength) {
+                                updateCharacterCount(input, parseInt(maxLength));
+                            }
                         } else {
                             input.value = answer;
                         }

@@ -94,7 +94,6 @@ class FormResponse(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)  # Automatically updates on save
     is_read = models.BooleanField(default=False, db_index=True)
-    is_draft = models.BooleanField(default=False)  # Whether this is a draft or final submission
     
     # New fields for team-based peer evaluation
     team_identifier = models.CharField(max_length=255, blank=True, null=True, db_index=True)
@@ -122,27 +121,6 @@ class ResponseAnswer(models.Model):
 
     def __str__(self):
         return f'Answer to "{self.question[:40]}"'
-
-
-class DraftResponse(models.Model):
-    """Stores draft responses for evaluations in progress"""
-    student = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='draft_responses')
-    form = models.ForeignKey(FormTemplate, on_delete=models.CASCADE, related_name='draft_responses')
-    draft_data = models.JSONField(default=dict)  # Stores partial answers
-    team_identifier = models.CharField(max_length=255, blank=True, null=True)
-    teammate_name = models.CharField(max_length=255, blank=True, null=True)
-    last_saved = models.DateTimeField(auto_now=True, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        unique_together = ['student', 'form', 'team_identifier', 'teammate_name']
-        indexes = [
-            models.Index(fields=['student', '-last_saved']),
-        ]
-        ordering = ['-last_saved']
-    
-    def __str__(self):
-        return f'Draft: {self.student.user.username} - {self.form.title}'
 
 
 class PendingEvaluation(models.Model):
@@ -177,20 +155,11 @@ class PendingEvaluation(models.Model):
     
     @property
     def status(self):
-        """Determine evaluation status: urgent, in_progress, or not_started"""
+        """Determine evaluation status: urgent or not_started"""
         days = self.days_left
-        # Check if there's a draft
-        has_draft = DraftResponse.objects.filter(student=self.student, form=self.form).exists()
         
-        if has_draft:
-            return 'in_progress'
-        elif days is not None and days <= 3:
+        if days is not None and days <= 3:
             return 'urgent'
         else:
             return 'not_started'
-    
-    @property
-    def has_draft(self):
-        """Check if student has saved a draft for this evaluation"""
-        return DraftResponse.objects.filter(student=self.student, form=self.form).exists()
 

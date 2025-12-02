@@ -6,11 +6,6 @@
     <title>{% block title %}EvalMate - Faculty Dashboard{% endblock %}</title>
     {% load static %}
     
-    <!-- Preload critical resources for instant navigation -->
-    <link rel="prefetch" href="{% static 'EvalMateApp/css/form-builder.css' %}" as="style">
-    <link rel="prefetch" href="{% static 'EvalMateApp/css/reports.css' %}" as="style">
-    <link rel="prefetch" href="{% static 'EvalMateApp/js/form-builder.js' %}" as="script">
-    
     <!-- Common Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,15 +15,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Base Dashboard CSS -->
-    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/faculty-dashboard.css' %}?v=7">
+    <link rel="stylesheet" href="{% static 'EvalMateApp/css/notifications.css' %}?v=2">
     
     <!-- Page-specific CSS -->
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Ultra-fast loading indicator -->
-    <div class="spa-loading-bar" id="spaLoadingBar"></div>
-    
     <!-- Main Container -->
     <div class="dashboard">
         <!-- Sidebar - Global and Persistent -->
@@ -78,15 +71,43 @@
             </div>
         </aside>
 
-        <!-- Main Content Area - This will change per page -->
+        <!-- Main Content Area -->
         <main class="main-content">
-            {% block content %}
-            <!-- Page-specific content goes here -->
-            {% endblock %}
+            <!-- Top Navigation Bar - Fixed and Persistent -->
+            <header class="topnav">
+                <div class="topnav__left">
+                    <!-- Empty - no redundant logo -->
+                </div>
+
+                <div class="topnav__actions">
+                    <!-- User Profile -->
+                    <div class="topnav__user">
+                        <div class="user__info">
+                            <span class="user__name">{{ profile.first_name }} {{ profile.last_name }}</span>
+                            <span class="user__role">{{ profile.account_type }}</span>
+                        </div>
+                        <div class="user__avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Content Wrapper - SPA updates only this part -->
+            <div class="content-wrapper" id="mainContent">
+                {% block content %}
+                <!-- Page-specific content goes here -->
+                {% endblock %}
+            </div>
         </main>
     </div>
 
-    <!-- Base Scripts -->
+    <!-- Base Scripts (minimal sidebar management only) -->
+    <script src="{% static 'EvalMateApp/js/notifications.js' %}?v=3"></script>
+    <script>
+        // Verify notification system loaded
+        console.log('Notification Manager:', typeof notificationManager !== 'undefined' ? 'Loaded ✓' : 'Failed ✗');
+    </script>
     <script src="{% static 'EvalMateApp/js/spa-router.js' %}"></script>
     
     <!-- Page-specific Scripts -->
@@ -94,25 +115,12 @@
     
     <!-- Security: Prevent accessing page after logout -->
     <script>
-        // Disable cache for authenticated pages
-        (function() {
-            // Prevent page from being cached
-            window.addEventListener('pageshow', function(event) {
-                if (event.persisted) {
-                    // Page was loaded from cache (user pressed back button)
-                    window.location.reload();
-                }
-            });
-            
-            // Check authentication status on page load
-            fetch(window.location.href, {
-                method: 'HEAD',
-                cache: 'no-store'
-            }).catch(function() {
-                // If fetch fails, redirect to login
-                window.location.href = '/login/';
-            });
-        })();
+        // Prevent page from being cached (back button protection)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
     </script>
 </body>
 </html>
